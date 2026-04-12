@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Swift
+.build/
+.swiftpm/
+xcuserdata/
+*.xcodeproj/
+DerivedData/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+*.whl
+
+# IDE
+.vscode/
+.idea/
+
+# Planning
+context/planning/
+
+# Logs
+*.log

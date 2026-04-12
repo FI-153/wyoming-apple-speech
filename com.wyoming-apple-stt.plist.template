@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.wyoming-apple-stt</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__VENV_PYTHON__</string>
+        <string>-m</string>
+        <string>wyoming_apple_stt</string>
+        <string>--uri</string>
+        <string>tcp://0.0.0.0:__PORT__</string>
+        <string>--apple-stt-bin</string>
+        <string>__APPLE_STT_BIN__</string>
+        <string>--language</string>
+        <string>__LANGUAGE__</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__INSTALL_DIR__</string>
+</dict>
+</plist>
