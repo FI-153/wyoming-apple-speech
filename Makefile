@@ -7,7 +7,7 @@ SWIFT_BIN := swift/.build/release/apple-stt
 PORT ?= 10300
 LANGUAGE ?= en
 
-.PHONY: help venv build test quality run run-clean install uninstall clean
+.PHONY: help venv build test swift-test quality run run-clean install uninstall clean
 
 help: ## Show this help message
 	@echo "Wyoming Apple STT"
@@ -34,6 +34,9 @@ $(SWIFT_BIN): swift/Package.swift swift/Sources/AppleSTT/*.swift
 
 test: venv ## Run Python tests
 	$(VENV_PYTHON) -m pytest tests/ -v
+
+swift-test: ## Run Swift unit tests
+	cd swift && swift build --build-tests && swift test --skip-build
 
 quality: venv ## Run ruff linter and mypy type checker
 	$(VENV_DIR)/bin/ruff check wyoming_apple_stt/ tests/

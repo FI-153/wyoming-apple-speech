@@ -16,5 +16,10 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
             ]
         ),
+        .testTarget(
+            name: "AppleSTTTests",
+            dependencies: ["apple-stt"],
+            path: "Tests/AppleSTTTests"
+        ),
     ]
 )

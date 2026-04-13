@@ -7,11 +7,11 @@ import Speech
 class SpeechAnalyzerEngine: STTEngine {
 
     func transcribe(pcmData: Data, language: String) async throws -> String {
-        let locale = Locale(identifier: language)
-
         guard SpeechTranscriber.isAvailable else {
             throw STTError.recognitionFailed("SpeechTranscriber is not available on this system.")
         }
+
+        let locale = try await resolveLocale(language)
 
         let inputFormat = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
@@ -26,10 +26,12 @@ class SpeechAnalyzerEngine: STTEngine {
             return ""
         }
 
-        guard let inputBuffer = AVAudioPCMBuffer(
-            pcmFormat: inputFormat,
-            frameCapacity: frameCount
-        ) else {
+        guard
+            let inputBuffer = AVAudioPCMBuffer(
+                pcmFormat: inputFormat,
+                frameCapacity: frameCount
+            )
+        else {
             throw STTError.bufferCreationFailed
         }
         inputBuffer.frameLength = frameCount
@@ -47,13 +49,18 @@ class SpeechAnalyzerEngine: STTEngine {
             attributeOptions: []
         )
 
+        try await ensureModelDownloaded(for: transcriber, locale: locale)
+
         let analyzer = SpeechAnalyzer(modules: [transcriber])
 
         // Get the format the analyzer expects and convert if needed
-        guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
-            compatibleWith: [transcriber]
-        ) else {
-            throw STTError.recognitionFailed("No compatible audio format available for SpeechAnalyzer.")
+        guard
+            let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
+                compatibleWith: [transcriber]
+            )
+        else {
+            throw STTError.recognitionFailed(
+                "No compatible audio format available for SpeechAnalyzer.")
         }
 
         let convertedBuffer: AVAudioPCMBuffer
@@ -66,10 +73,12 @@ class SpeechAnalyzerEngine: STTEngine {
             let convertedCapacity = AVAudioFrameCount(
                 Double(frameCount) * analyzerFormat.sampleRate / inputFormat.sampleRate
             )
-            guard let buffer = AVAudioPCMBuffer(
-                pcmFormat: analyzerFormat,
-                frameCapacity: convertedCapacity
-            ) else {
+            guard
+                let buffer = AVAudioPCMBuffer(
+                    pcmFormat: analyzerFormat,
+                    frameCapacity: convertedCapacity
+                )
+            else {
                 throw STTError.bufferCreationFailed
             }
             try converter.convert(to: buffer, from: inputBuffer)
@@ -101,5 +110,50 @@ class SpeechAnalyzerEngine: STTEngine {
         try await resultTask.value
 
         return finalText
+    }
+
+    // MARK: - Private Helpers
+
+    /// Resolve a language string to a supported ``SpeechTranscriber`` locale.
+    ///
+    /// Delegates to ``bestMatchingLocale(for:in:)`` using the set of
+    /// locales reported by ``SpeechTranscriber/supportedLocales``.
+    ///
+    /// - Parameter language: BCP-47 language code (e.g. "en", "en-US").
+    /// - Returns: A supported locale matching the language.
+    private func resolveLocale(_ language: String) async throws -> Locale {
+        let supported = await SpeechTranscriber.supportedLocales
+        guard let locale = bestMatchingLocale(for: language, in: supported) else {
+            throw STTError.languageNotSupported(language)
+        }
+        return locale
+    }
+
+    /// Ensure the on-device model for the given locale is downloaded.
+    ///
+    /// Checks ``SpeechTranscriber/installedLocales`` first. If the model
+    /// is missing, requests an asset download via ``AssetInventory``.
+    ///
+    /// - Parameters:
+    ///   - transcriber: The transcriber whose model to check.
+    ///   - locale: The locale whose model must be installed.
+    private func ensureModelDownloaded(
+        for transcriber: SpeechTranscriber,
+        locale: Locale
+    ) async throws {
+        let installed = await SpeechTranscriber.installedLocales
+        let localeBCP47 = locale.identifier(.bcp47)
+
+        if installed.contains(where: { $0.identifier(.bcp47) == localeBCP47 }) {
+            return
+        }
+
+        if let downloader = try await AssetInventory.assetInstallationRequest(
+            supporting: [transcriber]
+        ) {
+            try await downloader.downloadAndInstall()
+        } else {
+            throw STTError.onDeviceModelNotAvailable
+        }
     }
 }

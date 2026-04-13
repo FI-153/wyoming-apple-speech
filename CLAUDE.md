@@ -7,6 +7,9 @@ framework) to Home Assistant's Voice pipeline.
 
 - **swift/** — Swift CLI tool that reads PCM audio from stdin and outputs transcribed text as JSON.
   Uses SpeechAnalyzer on macOS 26+ and SFSpeechRecognizer on older systems.
+  - `LocaleMatching.swift` — pure function `bestMatchingLocale(for:in:)` for resolving bare
+    language codes (e.g. "en") to full locales (e.g. "en-US") against `SpeechTranscriber.supportedLocales`.
+  - `swift/Tests/AppleSTTTests/` — Swift unit tests (Swift Testing framework).
 - **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
   Assistant, accumulates audio, delegates transcription to the Swift CLI.
 - **scripts/** — Install and uninstall scripts for the launchd service.
@@ -22,14 +25,15 @@ All development commands go through the Makefile. **Always use `make` commands**
 invoking tools directly.
 
 ```bash
-make          # Show help with all available targets
-make venv     # Create Python venv and install dev dependencies
-make build    # Build the Swift CLI binary
-make test     # Run Python tests (creates venv if needed)
-make run      # Run the server locally (builds everything first)
-make install  # Install as launchd service
-make uninstall # Remove the launchd service and files
-make clean    # Remove build artifacts and venv
+make            # Show help with all available targets
+make venv       # Create Python venv and install dev dependencies
+make build      # Build the Swift CLI binary
+make test       # Run Python tests (creates venv if needed)
+make swift-test # Run Swift unit tests (LocaleMatching, etc.)
+make run        # Run the server locally (builds everything first)
+make install    # Install as launchd service
+make uninstall  # Remove the launchd service and files
+make clean      # Remove build artifacts and venv
 ```
 
 **Important**: Never run `pytest`, `swift build`, or `pip install` directly. Always use the
