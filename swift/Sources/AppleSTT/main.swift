@@ -31,22 +31,33 @@ func writeTranscript(_ text: String) {
     }
 }
 
+/// Parsed command-line arguments.
+struct CLIArgs {
+    /// BCP-47 language code for transcription.
+    var language: String = "en"
+    /// When true, print supported languages and exit.
+    var listLanguages: Bool = false
+}
+
 /// Parse command-line arguments.
-func parseArgs() -> String {
-    var language = "en"
+func parseArgs() -> CLIArgs {
+    var result = CLIArgs()
     let args = CommandLine.arguments
 
     var i = 1
     while i < args.count {
         if args[i] == "--language", i + 1 < args.count {
-            language = args[i + 1]
+            result.language = args[i + 1]
             i += 2
+        } else if args[i] == "--list-languages" {
+            result.listLanguages = true
+            i += 1
         } else {
             i += 1
         }
     }
 
-    return language
+    return result
 }
 
 /// Request speech recognition authorization and wait for the result.
@@ -98,7 +109,26 @@ func transcribeWithFallback(pcmData: Data, language: String) async throws -> Str
 
 // MARK: - Main
 
-let language = parseArgs()
+let cliArgs = parseArgs()
+
+if cliArgs.listLanguages {
+    var codes: [String]
+    if #available(macOS 26, *) {
+        let locales = await SpeechTranscriber.supportedLocales
+        codes = languageCodes(from: locales)
+    } else {
+        let locales = Array(SFSpeechRecognizer.supportedLocales())
+        codes = languageCodes(from: locales)
+    }
+    if let jsonData = try? JSONSerialization.data(withJSONObject: codes),
+        let jsonString = String(data: jsonData, encoding: .utf8)
+    {
+        print(jsonString)
+    }
+    exit(0)
+}
+
+let language = cliArgs.language
 let pcmData = readStdin()
 
 let durationSeconds = Double(pcmData.count) / (16000.0 * 2.0)

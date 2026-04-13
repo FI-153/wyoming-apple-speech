@@ -9,6 +9,8 @@ framework) to Home Assistant's Voice pipeline.
   Uses SpeechAnalyzer on macOS 26+ and SFSpeechRecognizer on older systems.
   - `LocaleMatching.swift` — pure function `bestMatchingLocale(for:in:)` for resolving bare
     language codes (e.g. "en") to full locales (e.g. "en-US") against `SpeechTranscriber.supportedLocales`.
+  - `SupportedLanguages.swift` — pure function `languageCodes(from:)` for extracting deduplicated,
+    sorted short language codes from a list of locales. Used by `--list-languages` CLI flag.
   - `swift/Tests/AppleSTTTests/` — Swift unit tests (Swift Testing framework).
 - **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
   Assistant, accumulates audio, delegates transcription to the Swift CLI.
@@ -31,6 +33,7 @@ make build      # Build the Swift CLI binary
 make test       # Run Python tests (creates venv if needed)
 make swift-test # Run Swift unit tests (LocaleMatching, etc.)
 make run        # Run the server locally (builds everything first)
+make stop       # Stop the server running on PORT
 make install    # Install as launchd service
 make uninstall  # Remove the launchd service and files
 make clean      # Remove build artifacts and venv

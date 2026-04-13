@@ -1,5 +1,6 @@
 """Tests for the Wyoming Apple STT event handler."""
 
+import argparse
 import asyncio
 import json
 from unittest.mock import AsyncMock, patch
@@ -201,3 +202,43 @@ async def test_serialization_lock(handler, wyoming_info, cli_args, transcription
 
     # With serialization: start, end, start, end (not start, start, end, end)
     assert call_order == ["start", "end", "start", "end"]
+
+
+async def test_default_language_from_cli_args(wyoming_info, cli_args, transcription_lock):
+    """When Transcribe has no language, use cli_args.language as default."""
+    # Create handler with Italian default
+    it_args = argparse.Namespace(
+        apple_stt_bin="/usr/local/bin/apple-stt",
+        timeout=30,
+        max_audio_seconds=60,
+        language="it",
+    )
+    reader = AsyncMock()
+    writer = AsyncMock()
+    it_handler = AppleSTTEventHandler(
+        wyoming_info,
+        it_args, transcription_lock, reader, writer,
+    )
+    it_handler.write_event = AsyncMock()
+
+    # Transcribe with no language specified
+    await it_handler.handle_event(Transcribe().event())
+    chunk = AudioChunk(rate=16000, width=2, channels=1, audio=b"\x00\x00" * 100)
+    await it_handler.handle_event(chunk.event())
+
+    mock_process = AsyncMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"text": "accendi le luci"}).encode(),
+        b"",
+    )
+    mock_process.returncode = 0
+
+    with patch(
+        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        return_value=mock_process,
+    ) as mock_exec:
+        await it_handler.handle_event(AudioStop().event())
+
+    call_args = mock_exec.call_args
+    assert "--language" in call_args[0]
+    assert "it" in call_args[0]

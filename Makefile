@@ -7,7 +7,7 @@ SWIFT_BIN := swift/.build/release/apple-stt
 PORT ?= 10300
 LANGUAGE ?= en
 
-.PHONY: help venv build test swift-test quality run run-clean install uninstall clean
+.PHONY: help venv build test swift-test quality run run-clean stop install uninstall clean
 
 help: ## Show this help message
 	@echo "Wyoming Apple STT"
@@ -57,6 +57,9 @@ run: venv build ## Run the server locally (Ctrl+C to stop)
 		--apple-stt-bin $(SWIFT_BIN) \
 		--language $(LANGUAGE) \
 		--debug
+
+stop: ## Stop the server running on PORT
+	@lsof -ti tcp:$(PORT) | xargs kill 2>/dev/null && echo "Stopped server on port $(PORT)" || echo "No server running on port $(PORT)"
 
 install: build ## Install as launchd service (PORT=10300 LANGUAGE=en)
 	./scripts/install.sh $(PORT) $(LANGUAGE)

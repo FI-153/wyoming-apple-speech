@@ -77,7 +77,7 @@ class AppleSTTEventHandler(AsyncEventHandler):
 
     async def _transcribe(self) -> str:
         """Run the apple-stt subprocess and return transcribed text."""
-        language = self._language or "en_US"
+        language = self._language or self._cli_args.language
         audio_data = bytes(self._audio_bytes)
 
         if not audio_data:

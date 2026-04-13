@@ -3,6 +3,7 @@
 
 import argparse
 import asyncio
+import json
 import logging
 from functools import partial
 
@@ -12,6 +13,51 @@ from wyoming.server import AsyncServer
 from .handler import AppleSTTEventHandler
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def _discover_languages(bin_path: str, default_language: str) -> list[str]:
+    """Query the Swift CLI for supported languages.
+
+    Calls the apple-stt binary with --list-languages and parses the
+    JSON array of BCP-47 language codes. Falls back to a single-element
+    list containing default_language on any failure.
+
+    Args:
+        bin_path: Path to the apple-stt Swift CLI binary.
+        default_language: BCP-47 language code to use as fallback.
+
+    Returns:
+        List of BCP-47 language codes supported by the binary, or
+        [default_language] if discovery fails.
+    """
+    try:
+        process = await asyncio.create_subprocess_exec(
+            bin_path, "--list-languages",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(
+            process.communicate(), timeout=10
+        )
+        if process.returncode == 0:
+            languages: list[str] = json.loads(stdout.decode())
+            _LOGGER.debug(
+                "Discovered %d supported languages: %s",
+                len(languages),
+                languages,
+            )
+            return languages
+    except (asyncio.TimeoutError, json.JSONDecodeError, OSError) as exc:
+        _LOGGER.debug(
+            "Language discovery failed (%s), falling back to [%s]",
+            exc,
+            default_language,
+        )
+    _LOGGER.debug(
+        "Falling back to default language list: [%s]",
+        default_language,
+    )
+    return [default_language]
 
 
 async def main() -> None:
@@ -59,6 +105,8 @@ async def main() -> None:
     )
     _LOGGER.debug("Args: %s", args)
 
+    languages = await _discover_languages(args.apple_stt_bin, args.language)
+
     wyoming_info = Info(
         asr=[
             AsrProgram(
@@ -79,7 +127,7 @@ async def main() -> None:
                             url="https://developer.apple.com/documentation/speech",
                         ),
                         installed=True,
-                        languages=[args.language],
+                        languages=languages,
                         version=None,
                     )
                 ],

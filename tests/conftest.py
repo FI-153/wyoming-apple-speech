@@ -45,4 +45,5 @@ def cli_args() -> argparse.Namespace:
         apple_stt_bin="/usr/local/bin/apple-stt",
         timeout=30,
         max_audio_seconds=60,
+        language="en",
     )
