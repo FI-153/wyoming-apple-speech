@@ -13,35 +13,11 @@ class SpeechAnalyzerEngine: STTEngine {
 
         let locale = try await resolveLocale(language)
 
-        let inputFormat = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: 16000,
-            channels: 1,
-            interleaved: true
-        )!
-
-        let bytesPerFrame = inputFormat.streamDescription.pointee.mBytesPerFrame
-        let frameCount = UInt32(pcmData.count) / bytesPerFrame
-        guard frameCount > 0 else {
+        guard let inputBuffer = try makePCMBuffer(from: pcmData) else {
             return ""
         }
 
-        guard
-            let inputBuffer = AVAudioPCMBuffer(
-                pcmFormat: inputFormat,
-                frameCapacity: frameCount
-            )
-        else {
-            throw STTError.bufferCreationFailed
-        }
-        inputBuffer.frameLength = frameCount
-
-        pcmData.withUnsafeBytes { rawBuffer in
-            guard let src = rawBuffer.baseAddress else { return }
-            memcpy(inputBuffer.int16ChannelData![0], src, pcmData.count)
-        }
-
-        // Set up transcriber and analyzer
+        // Use a SpeechTranscriber since it is better suited for commands
         let transcriber = SpeechTranscriber(
             locale: locale,
             transcriptionOptions: [],
@@ -49,11 +25,11 @@ class SpeechAnalyzerEngine: STTEngine {
             attributeOptions: []
         )
 
+        // If the language model is missing then install it
         try await ensureModelDownloaded(for: transcriber, locale: locale)
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
 
-        // Get the format the analyzer expects and convert if needed
         guard
             let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
                 compatibleWith: [transcriber]
@@ -64,14 +40,15 @@ class SpeechAnalyzerEngine: STTEngine {
         }
 
         let convertedBuffer: AVAudioPCMBuffer
-        if inputFormat == analyzerFormat {
+        if pcmInputFormat == analyzerFormat {
             convertedBuffer = inputBuffer
         } else {
-            guard let converter = AVAudioConverter(from: inputFormat, to: analyzerFormat) else {
+            guard let converter = AVAudioConverter(from: pcmInputFormat, to: analyzerFormat) else {
                 throw STTError.recognitionFailed("Cannot convert audio to analyzer format.")
             }
             let convertedCapacity = AVAudioFrameCount(
-                Double(frameCount) * analyzerFormat.sampleRate / inputFormat.sampleRate
+                Double(inputBuffer.frameLength) * analyzerFormat.sampleRate
+                    / pcmInputFormat.sampleRate
             )
             guard
                 let buffer = AVAudioPCMBuffer(
@@ -85,20 +62,19 @@ class SpeechAnalyzerEngine: STTEngine {
             convertedBuffer = buffer
         }
 
-        // Create async stream to feed audio
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
 
-        // Collect results
-        var finalText = ""
+        // Transcribe
         let resultTask = Task {
+            var text = ""
             for try await result in transcriber.results {
                 if result.isFinal {
-                    finalText = String(result.text.characters)
+                    text = String(result.text.characters)
                 }
             }
+            return text
         }
 
-        // Start analyzer, feed audio, finalize
         try await analyzer.start(inputSequence: stream)
 
         continuation.yield(AnalyzerInput(buffer: convertedBuffer))
@@ -106,10 +82,7 @@ class SpeechAnalyzerEngine: STTEngine {
 
         try await analyzer.finalizeAndFinishThroughEndOfInput()
 
-        // Wait for results to finish
-        try await resultTask.value
-
-        return finalText
+        return try await resultTask.value
     }
 
     // MARK: - Private Helpers
@@ -151,7 +124,9 @@ class SpeechAnalyzerEngine: STTEngine {
         if let downloader = try await AssetInventory.assetInstallationRequest(
             supporting: [transcriber]
         ) {
+            fputs("[apple-stt] Downloading model for \(locale)...", stderr)
             try await downloader.downloadAndInstall()
+            fputs("[apple-stt] Download finised for \(locale)", stderr)
         } else {
             throw STTError.onDeviceModelNotAvailable
         }

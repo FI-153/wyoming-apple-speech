@@ -6,48 +6,36 @@ import Speech
 class SFSpeechEngine: STTEngine {
 
     func transcribe(pcmData: Data, language: String) async throws -> String {
-        let locale = Locale(identifier: language)
+        let supportedLocales = Array(SFSpeechRecognizer.supportedLocales())
+
+        // Check if the lanauge is supported among the locales
+        guard let locale = bestMatchingLocale(for: language, in: supportedLocales) else {
+            throw STTError.languageNotSupported(language)
+        }
+
+        // Check if the language is supported by SFSpeechRecognizer
         guard let recognizer = SFSpeechRecognizer(locale: locale) else {
             throw STTError.languageNotSupported(language)
         }
 
+        // Check if the on-device stt model is downloaded
         guard recognizer.supportsOnDeviceRecognition else {
             throw STTError.onDeviceModelNotAvailable
         }
 
+        // Create a local request that returns all the data at the same time (no chunks)
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = false
 
-        let audioFormat = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: 16000,
-            channels: 1,
-            interleaved: true
-        )!
-
-        let bytesPerFrame = audioFormat.streamDescription.pointee.mBytesPerFrame
-        let frameCount = UInt32(pcmData.count) / bytesPerFrame
-        guard frameCount > 0 else {
+        // Create a buffer from the given audio and append it to the request
+        guard let buffer = try makePCMBuffer(from: pcmData) else {
             return ""
         }
-
-        guard let buffer = AVAudioPCMBuffer(
-            pcmFormat: audioFormat,
-            frameCapacity: frameCount
-        ) else {
-            throw STTError.bufferCreationFailed
-        }
-        buffer.frameLength = frameCount
-
-        pcmData.withUnsafeBytes { rawBuffer in
-            guard let src = rawBuffer.baseAddress else { return }
-            memcpy(buffer.int16ChannelData![0], src, pcmData.count)
-        }
-
         request.append(buffer)
         request.endAudio()
 
+        // Actual transcription
         return try await withCheckedThrowingContinuation { continuation in
             var hasResumed = false
             recognizer.recognitionTask(with: request) { result, error in
