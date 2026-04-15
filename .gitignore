@@ -21,6 +21,7 @@ build/
 .venv/
 venv/
 *.whl
+.*_cache
 
 # IDE
 .vscode/
