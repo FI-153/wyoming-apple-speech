@@ -31,7 +31,7 @@ class WyomingAppleStt < Formula
       if [[ -f "${CONF}" ]]; then
         source "${CONF}"
       fi
-      exec "#{libexec}/venv/bin/python" -m wyoming_apple_stt \\
+      exec "#{libexec}/bin/python" -m wyoming_apple_stt \\
         --uri "tcp://0.0.0.0:${PORT}" \\
         --apple-stt-bin "#{bin}/apple-stt"
     EOS
@@ -48,6 +48,6 @@ class WyomingAppleStt < Formula
   test do
     output = shell_output("#{bin}/apple-stt --list-languages")
     assert_match(/"en"/, output)
-    system libexec/"venv/bin/python", "-c", "import wyoming_apple_stt"
+    system libexec/"bin/python", "-c", "import wyoming_apple_stt"
   end
 end
