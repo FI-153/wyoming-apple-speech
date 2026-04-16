@@ -15,6 +15,9 @@ framework) to Home Assistant's Voice pipeline.
 - **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
   Assistant, accumulates audio, delegates transcription to the Swift CLI.
 - **scripts/** — Install and uninstall scripts for the launchd service.
+- **packaging/** — Release tooling: `build-release-tarball.sh` produces the
+  GitHub release artifact; `formula.rb.template` + `python-resources.rb` are
+  rendered by CI into the Homebrew formula.
 
 ## Key References
 
@@ -78,3 +81,40 @@ Use the `superpowers:test-driven-development` skill when implementing features o
 
 **No Auto-Commits**: Never run `git commit`, `git push`, or any git write operations unless
 the user explicitly asks. Stage and commit decisions are always the user's to make.
+
+## Releasing
+
+Releases are tag-driven. To cut a new release:
+
+```bash
+git tag v<major>.<minor>.<patch>
+git push origin v<major>.<minor>.<patch>
+```
+
+The `.github/workflows/release.yml` workflow then:
+
+1. Runs `make swift-test` and aborts on failure.
+2. Builds the universal Swift binary via `packaging/build-release-tarball.sh` and
+   assembles `wyoming-apple-stt-<version>.tar.gz`.
+3. Creates a GitHub release named after the tag and uploads the tarball as the
+   sole asset.
+4. Renders `packaging/formula.rb.template` with the new version, URL, and sha256,
+   then pushes the resulting `Formula/wyoming-apple-stt.rb` to `FI-153/homebrew-tap`.
+
+Requirements:
+
+- The `TAP_PUSH_TOKEN` secret must be configured in repo **Settings → Secrets and
+  variables → Actions**. It is a fine-grained PAT scoped to `FI-153/homebrew-tap`
+  with `contents: write`. Never commit the token to the repo.
+- Python `resource` blocks live in `packaging/python-resources.rb`. When
+  `pyproject.toml` runtime dependencies change, regenerate that file:
+
+  ```bash
+  python3 -m venv /tmp/poet-venv
+  /tmp/poet-venv/bin/pip install homebrew-pypi-poet wyoming
+  /tmp/poet-venv/bin/poet wyoming > packaging/python-resources.rb
+  rm -rf /tmp/poet-venv
+  ```
+
+- No file in the repo carries a version. The git tag is the single source of truth;
+  `pyproject.toml`'s `version` is static at `0.0.0` and cosmetic only.
