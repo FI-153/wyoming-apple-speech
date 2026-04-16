@@ -17,11 +17,14 @@ class WyomingAppleStt < Formula
     bin.install "apple-stt"
     virtualenv_install_with_resources
 
-    (etc/"wyoming-apple-stt.conf").write <<~EOS
-      # Wyoming Apple STT configuration
-      # Restart after editing: brew services restart wyoming-apple-stt
-      PORT=10300
-    EOS
+    conf = etc/"wyoming-apple-stt.conf"
+    unless conf.exist?
+      conf.write <<~EOS
+        # Wyoming Apple STT configuration
+        # Restart after editing: brew services restart wyoming-apple-stt
+        PORT=10300
+      EOS
+    end
 
     (libexec/"wyoming-apple-stt-run").write <<~EOS
       #!/bin/bash
