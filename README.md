@@ -1,12 +1,12 @@
 # Wyoming Apple STT
 
 On-device speech-to-text for Home Assistant, powered by Apple's Speech framework.
-Every word stays on your Mac — no cloud, no API key, no usage limits.
+Every word stays on your Mac: no cloud, no API key, no usage limits, full privacy.
 
 ## Requirements
 
 - macOS 15 (Sequoia) or later.
-- Home Assistant with the Wyoming integration.
+- [Home Assistant](https://www.home-assistant.io) with the [Wyoming](https://www.home-assistant.io/integrations/wyoming/) integration.
 
 **Which speech engine runs depends on your macOS version:**
 
@@ -17,7 +17,7 @@ Every word stays on your Mac — no cloud, no API key, no usage limits.
   installed via **System Settings → General → Language & Region → Dictation**
   (or that macOS has pre-downloaded).
 
-Both engines run fully on-device.
+Both engines run fully on-device. SpeechAnalyzer is faster and more precise.
 
 ## Install (Homebrew)
 
@@ -27,13 +27,14 @@ brew install wyoming-apple-stt
 brew services start wyoming-apple-stt
 ```
 
-The server now runs on port `10300` and auto-starts on login.
+The server now runs on port `10300` (default for Wyoming stt) and auto-starts on login.
 
 ## Point Home Assistant at it
 
 In Home Assistant: **Settings → Devices & services → Add integration → Wyoming
-Protocol**. Use `tcp://<your-mac-ip>:10300` as the host/port. On the first
-transcription, macOS prompts for Speech Recognition permission — approve once.
+Protocol**. Use `<your-mac-ip>:10300` as the host/port. On the first
+transcription, macOS prompts for Speech Recognition permission, one approved it 
+never asks again.
 
 ## Configuration
 
@@ -61,7 +62,7 @@ brew services stop wyoming-apple-stt
 brew uninstall wyoming-apple-stt
 ```
 
-## Manual install (for tinkerers)
+## Manual install
 
 If you'd rather run from source without Homebrew:
 
@@ -79,7 +80,3 @@ for most users — it handles upgrades, logs, and service management for free.
 
 All development commands go through the `Makefile`. Run `make` with no arguments
 to see the available targets.
-
-## License
-
-MIT.
