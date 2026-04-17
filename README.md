@@ -3,6 +3,8 @@
 On-device speech-to-text for Home Assistant, powered by Apple's Speech framework.
 Every word stays on your Mac: no cloud, no API key, no usage limits, full privacy.
 
+<img src="https://github.com/user-attachments/assets/a66196c6-065c-44d0-a381-12261da7d0c8" />
+
 ## Requirements
 
 - macOS 15 (Sequoia) or later.
