@@ -45,10 +45,10 @@ make install           # defaults: PORT=10300 LANGUAGE=en
 ## Connect to Home Assistant 🏠 
 
 In Home Assistant: **Settings → Devices & services → Add integration → Wyoming
-Protocol**. The populate the fields with your mac's IP and the port the server is running on (defaults to 10300)
+Protocol**. Then populate the fields with your Mac's IP and the port the server is running on (defaults to 10300).
 
 > [!IMPORTANT]
-> On the first transcription, macOS prompts for Speech Recognition permission, one approved it never asks again.
+> On the first transcription, macOS prompts for Speech Recognition permission; once approved, it never asks again.
 
 ## Configuration ⚙️
 
