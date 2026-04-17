@@ -10,16 +10,16 @@ Every word stays on your Mac: no cloud, no API key, no usage limits, full privac
 
 **Which speech engine runs depends on your macOS version:**
 
-- **macOS 26 (Tahoe) or later** — uses Apple's new **SpeechAnalyzer** API.
+- **macOS 26 (Tahoe) or later** — uses Apple's new [**SpeechAnalyzer**](https://developer.apple.com/documentation/speech/speechanalyzer) API.
   Language models download on-demand the first time a given language is used.
 - **macOS 15 (Sequoia) through 25** — falls back to the legacy
-  **SFSpeechRecognizer** API. Uses whichever speech-recognition locales are already
+  [**SFSpeechRecognizer**](https://developer.apple.com/documentation/speech/sfspeechrecognizer) API. Uses whichever speech-recognition locales are already
   installed via **System Settings → General → Language & Region → Dictation**
   (or that macOS has pre-downloaded).
 
 Both engines run fully on-device. SpeechAnalyzer is faster and more precise.
 
-## Install (Homebrew)
+## Install (Homebrew) 🍺
 
 ```bash
 brew tap FI-153/tap
@@ -27,16 +27,28 @@ brew install wyoming-apple-stt
 brew services start wyoming-apple-stt
 ```
 
-The server now runs on port `10300` (default for Wyoming stt) and auto-starts on login.
+> [!NOTE]
+> With both installation methods the server starts at login.
 
-## Point Home Assistant at it
+## Install (Manual) 💾
+
+If you'd rather run from source without Homebrew:
+
+```bash
+git clone https://github.com/FI-153/wyoming-apple-stt.git
+cd wyoming-apple-stt
+make install           # defaults: PORT=10300 LANGUAGE=en
+```
+
+## Connect to Home Assistant 🏠 
 
 In Home Assistant: **Settings → Devices & services → Add integration → Wyoming
-Protocol**. Use `<your-mac-ip>:10300` as the host/port. On the first
-transcription, macOS prompts for Speech Recognition permission, one approved it 
-never asks again.
+Protocol**. The populate the fields with your mac's IP and the port the server is running on (defaults to 10300)
 
-## Configuration
+> [!IMPORTANT]
+> On the first transcription, macOS prompts for Speech Recognition permission, one approved it never asks again.
+
+## Configuration ⚙️
 
 The only user-tunable setting is the TCP port, exposed via a small config file:
 
@@ -48,35 +60,12 @@ brew services restart wyoming-apple-stt
 
 Logs live at `$(brew --prefix)/var/log/wyoming-apple-stt.log`.
 
-## Upgrade
+> [!IMPORTANT]
+> For the server to start on boot without user intervention you need to enable [automatic login](https://support.apple.com/en-us/102316) from the Mac's settings
 
-```bash
-brew update && brew upgrade wyoming-apple-stt
-brew services restart wyoming-apple-stt
-```
-
-## Uninstall
+## Uninstall 🗑️
 
 ```bash
 brew services stop wyoming-apple-stt
 brew uninstall wyoming-apple-stt
 ```
-
-## Manual install
-
-If you'd rather run from source without Homebrew:
-
-```bash
-git clone https://github.com/FI-153/wyoming-apple-stt.git
-cd wyoming-apple-stt
-make install           # defaults: PORT=10300 LANGUAGE=en
-# or: make install PORT=10301 LANGUAGE=it
-```
-
-`make uninstall` removes the service cleanly. Homebrew is still the recommended path
-for most users — it handles upgrades, logs, and service management for free.
-
-## Development
-
-All development commands go through the `Makefile`. Run `make` with no arguments
-to see the available targets.
