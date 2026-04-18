@@ -14,7 +14,7 @@ Every word stays on your Mac: no cloud, no API key, no usage limits, full privac
 
 - **macOS 26 (Tahoe) or later** — uses Apple's new [**SpeechAnalyzer**](https://developer.apple.com/documentation/speech/speechanalyzer) API.
   Language models download on-demand the first time a given language is used.
-- **macOS 15 (Sequoia) through 25** — falls back to the legacy
+- **macOS 15 (Sequoia)** — falls back to the legacy
   [**SFSpeechRecognizer**](https://developer.apple.com/documentation/speech/sfspeechrecognizer) API. Uses whichever speech-recognition locales are already
   installed via **System Settings → General → Language & Region → Dictation**
   (or that macOS has pre-downloaded).
