@@ -47,7 +47,18 @@ async def _discover_languages(bin_path: str, default_language: str) -> list[str]
                 languages,
             )
             return languages
-    except (asyncio.TimeoutError, json.JSONDecodeError, OSError) as exc:
+    except asyncio.TimeoutError as exc:
+        try:
+            process.kill()
+            await process.wait()
+        except ProcessLookupError:
+            pass
+        _LOGGER.debug(
+            "Language discovery failed (%s), falling back to [%s]",
+            exc,
+            default_language,
+        )
+    except (json.JSONDecodeError, OSError) as exc:
         _LOGGER.debug(
             "Language discovery failed (%s), falling back to [%s]",
             exc,
@@ -81,7 +92,15 @@ async def _preload_model(bin_path: str, language: str) -> None:
             stderr=asyncio.subprocess.PIPE,
         )
         _, stderr = await asyncio.wait_for(process.communicate(), timeout=600)
-    except (asyncio.TimeoutError, OSError) as exc:
+    except asyncio.TimeoutError as exc:
+        try:
+            process.kill()
+            await process.wait()
+        except ProcessLookupError:
+            pass
+        _LOGGER.warning("Model preload for '%s' failed: %s", language, exc)
+        return
+    except OSError as exc:
         _LOGGER.warning("Model preload for '%s' failed: %s", language, exc)
         return
 

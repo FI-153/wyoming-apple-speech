@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import json
 import logging
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from wyoming.asr import Transcribe, Transcript
@@ -147,7 +147,7 @@ async def test_subprocess_timeout_returns_empty(handler):
 
     mock_process = AsyncMock()
     mock_process.communicate.side_effect = asyncio.TimeoutError()
-    mock_process.kill = AsyncMock()
+    mock_process.kill = Mock()
 
     with patch(
         "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
@@ -287,3 +287,30 @@ async def test_subprocess_failure_logs_stderr_at_error(handler, caplog):
         r.getMessage() for r in caplog.records if r.levelno == logging.ERROR
     )
     assert "permission denied" in error_text
+
+
+async def test_buffer_full_warns_once_per_utterance(handler, caplog):
+    """Buffer overflow warns once per utterance and resets for the next."""
+    one_second = b"\x00\x00" * 16000  # 32,000 bytes
+
+    def overflow_warnings():
+        return [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and "Max audio buffer" in r.getMessage()
+        ]
+
+    with caplog.at_level(logging.WARNING):
+        # First utterance: overflow the 60s buffer many times over.
+        await handler.handle_event(Transcribe(language="en").event())
+        for _ in range(70):
+            chunk = AudioChunk(rate=16000, width=2, channels=1, audio=one_second)
+            await handler.handle_event(chunk.event())
+        assert len(overflow_warnings()) == 1
+
+        # Second utterance: flag reset by Transcribe, so it can warn again.
+        await handler.handle_event(Transcribe(language="en").event())
+        for _ in range(70):
+            chunk = AudioChunk(rate=16000, width=2, channels=1, audio=one_second)
+            await handler.handle_event(chunk.event())
+        assert len(overflow_warnings()) == 2

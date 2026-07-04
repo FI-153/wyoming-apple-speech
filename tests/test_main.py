@@ -1,9 +1,10 @@
 """Tests for the Wyoming Apple STT server entry point."""
 
+import asyncio
 import logging
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from wyoming_apple_stt.__main__ import _preload_model
+from wyoming_apple_stt.__main__ import _discover_languages, _preload_model
 
 
 async def test_preload_model_invokes_cli_with_preload_flag(caplog):
@@ -52,4 +53,37 @@ async def test_preload_model_missing_binary_does_not_raise(caplog):
         with caplog.at_level(logging.WARNING):
             await _preload_model("/bad/path/apple-stt", "en")
 
+    assert any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+async def test_discover_languages_timeout_kills_process():
+    """A timeout during discovery kills the subprocess and falls back."""
+    mock_process = AsyncMock()
+    mock_process.communicate.side_effect = asyncio.TimeoutError()
+    mock_process.kill = Mock()
+
+    with patch(
+        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        return_value=mock_process,
+    ):
+        result = await _discover_languages("/usr/local/bin/apple-stt", "en")
+
+    mock_process.kill.assert_called_once()
+    assert result == ["en"]
+
+
+async def test_preload_model_timeout_kills_process(caplog):
+    """A timeout during preload kills the subprocess and logs a warning."""
+    mock_process = AsyncMock()
+    mock_process.communicate.side_effect = asyncio.TimeoutError()
+    mock_process.kill = Mock()
+
+    with patch(
+        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        return_value=mock_process,
+    ):
+        with caplog.at_level(logging.WARNING):
+            await _preload_model("/usr/local/bin/apple-stt", "en")
+
+    mock_process.kill.assert_called_once()
     assert any(r.levelno == logging.WARNING for r in caplog.records)

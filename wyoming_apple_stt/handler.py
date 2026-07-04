@@ -37,6 +37,7 @@ class AppleSTTEventHandler(AsyncEventHandler):
         self._lock = transcription_lock
         self._language: Optional[str] = None
         self._audio_bytes = bytearray()
+        self._buffer_full_warned = False
         self._audio_converter = AudioChunkConverter(
             rate=16000, width=2, channels=1
         )
@@ -55,6 +56,7 @@ class AppleSTTEventHandler(AsyncEventHandler):
             transcribe = Transcribe.from_event(event)
             self._language = transcribe.language
             self._audio_bytes.clear()
+            self._buffer_full_warned = False
             return True
 
         if AudioChunk.is_type(event.type):
@@ -62,14 +64,16 @@ class AppleSTTEventHandler(AsyncEventHandler):
             chunk = self._audio_converter.convert(chunk)
             if len(self._audio_bytes) + len(chunk.audio) <= self._max_audio_bytes:
                 self._audio_bytes.extend(chunk.audio)
-            else:
+            elif not self._buffer_full_warned:
                 _LOGGER.warning("Max audio buffer reached, dropping audio")
+                self._buffer_full_warned = True
             return True
 
         if AudioStop.is_type(event.type):
             text = await self._transcribe()
             await self.write_event(Transcript(text=text).event())
             self._audio_bytes.clear()
+            self._buffer_full_warned = False
             self._language = None
             return False
 

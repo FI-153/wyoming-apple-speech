@@ -164,14 +164,16 @@ class SpeechAnalyzerEngine: STTEngine {
             return
         }
 
-        if let downloader = try await AssetInventory.assetInstallationRequest(
+        // A nil request means no assets need installing — the model is
+        // already available, so there is nothing to download.
+        guard let downloader = try await AssetInventory.assetInstallationRequest(
             supporting: [transcriber]
-        ) {
-            fputs("[apple-stt] Downloading model for \(locale)...", stderr)
-            try await downloader.downloadAndInstall()
-            fputs("[apple-stt] Download finised for \(locale)", stderr)
-        } else {
-            throw STTError.onDeviceModelNotAvailable
+        ) else {
+            fputs("[apple-stt] Model already available for \(locale)\n", stderr)
+            return
         }
+        fputs("[apple-stt] Downloading model for \(locale)...\n", stderr)
+        try await downloader.downloadAndInstall()
+        fputs("[apple-stt] Download finished for \(locale)\n", stderr)
     }
 }

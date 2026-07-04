@@ -8,7 +8,7 @@ class SFSpeechEngine: STTEngine {
     func transcribe(pcmData: Data, language: String) async throws -> String {
         let supportedLocales = Array(SFSpeechRecognizer.supportedLocales())
 
-        // Check if the lanauge is supported among the locales
+        // Check if the language is supported among the locales
         guard let locale = bestMatchingLocale(for: language, in: supportedLocales) else {
             throw STTError.languageNotSupported(language)
         }
