@@ -23,6 +23,7 @@ class WyomingAppleStt < Formula
         # Wyoming Apple STT configuration
         # Restart after editing: brew services restart wyoming-apple-stt
         PORT=10300
+        LANGUAGE=en
       EOS
     end
 
@@ -30,12 +31,14 @@ class WyomingAppleStt < Formula
       #!/bin/bash
       set -euo pipefail
       PORT=10300
+      LANGUAGE=en
       CONF="#{etc}/wyoming-apple-stt.conf"
       if [[ -f "${CONF}" ]]; then
         source "${CONF}"
       fi
       exec "#{libexec}/bin/python" -m wyoming_apple_stt \\
         --uri "tcp://0.0.0.0:${PORT}" \\
+        --language "${LANGUAGE}" \\
         --apple-stt-bin "#{bin}/apple-stt"
     EOS
     chmod 0755, libexec/"wyoming-apple-stt-run"

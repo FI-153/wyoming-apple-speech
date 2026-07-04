@@ -52,11 +52,16 @@ Protocol**. Then populate the fields with your Mac's IP and the port the server 
 
 ## Configuration ⚙️
 
-The only user-tunable setting is the TCP port, exposed via a small config file:
+Two user-tunable settings are exposed via a small config file: `PORT` (the TCP port,
+default `10300`) and `LANGUAGE` (the default recognition language used when Home Assistant
+doesn't specify one, default `en`):
 
 ```bash
 # Default location on Apple Silicon:
-echo "PORT=10301" > "$(brew --prefix)/etc/wyoming-apple-stt.conf"
+cat > "$(brew --prefix)/etc/wyoming-apple-stt.conf" <<EOF
+PORT=10301
+LANGUAGE=it
+EOF
 brew services restart wyoming-apple-stt
 ```
 

@@ -1,7 +1,7 @@
 import AVFoundation
 import Speech
 
-/// STT engine using SFSpeechRecognizer (macOS 14+).
+/// STT engine using SFSpeechRecognizer (macOS 15+).
 /// Uses on-device recognition only — no network calls.
 class SFSpeechEngine: STTEngine {
 
