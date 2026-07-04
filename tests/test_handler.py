@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import logging
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -242,3 +243,47 @@ async def test_default_language_from_cli_args(wyoming_info, cli_args, transcript
     call_args = mock_exec.call_args
     assert "--language" in call_args[0]
     assert "it" in call_args[0]
+
+
+async def test_missing_binary_returns_empty_transcript(handler, caplog):
+    """A missing/unexecutable apple-stt binary should not crash the handler."""
+    await handler.handle_event(Transcribe(language="en").event())
+    chunk = AudioChunk(rate=16000, width=2, channels=1, audio=b"\x00\x00" * 16000)
+    await handler.handle_event(chunk.event())
+
+    with patch(
+        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        side_effect=FileNotFoundError("No such file or directory"),
+    ):
+        with caplog.at_level(logging.ERROR):
+            result = await handler.handle_event(AudioStop().event())
+
+    assert result is False
+    handler.write_event.assert_called_once()
+    written_event = handler.write_event.call_args[0][0]
+    transcript = Transcript.from_event(written_event)
+    assert transcript.text == ""
+    assert any(r.levelno == logging.ERROR for r in caplog.records)
+
+
+async def test_subprocess_failure_logs_stderr_at_error(handler, caplog):
+    """Non-zero exit should surface the CLI's stderr at ERROR level."""
+    await handler.handle_event(Transcribe(language="en").event())
+    chunk = AudioChunk(rate=16000, width=2, channels=1, audio=b"\x00\x00" * 16000)
+    await handler.handle_event(chunk.event())
+
+    mock_process = AsyncMock()
+    mock_process.communicate.return_value = (b"", b"Error: permission denied\n")
+    mock_process.returncode = 1
+
+    with patch(
+        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        return_value=mock_process,
+    ):
+        with caplog.at_level(logging.ERROR):
+            await handler.handle_event(AudioStop().event())
+
+    error_text = "\n".join(
+        r.getMessage() for r in caplog.records if r.levelno == logging.ERROR
+    )
+    assert "permission denied" in error_text

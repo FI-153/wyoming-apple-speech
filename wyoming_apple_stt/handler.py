@@ -92,6 +92,14 @@ class AppleSTTEventHandler(AsyncEventHandler):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
+            except OSError as exc:
+                _LOGGER.error(
+                    "Failed to launch apple-stt binary '%s': %s",
+                    self._cli_args.apple_stt_bin,
+                    exc,
+                )
+                return ""
+            try:
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(input=audio_data),
                     timeout=self._cli_args.timeout,
@@ -106,13 +114,18 @@ class AppleSTTEventHandler(AsyncEventHandler):
                 return ""
 
         stderr_text = stderr.decode().strip()
+
+        if process.returncode != 0:
+            _LOGGER.error(
+                "apple-stt failed (exit %d): %s",
+                process.returncode,
+                stderr_text or "(no stderr output)",
+            )
+            return ""
+
         if stderr_text:
             for line in stderr_text.splitlines():
                 _LOGGER.debug("%s", line)
-
-        if process.returncode != 0:
-            _LOGGER.error("apple-stt failed (exit %d)", process.returncode)
-            return ""
 
         try:
             result: dict[str, str] = json.loads(stdout.decode())

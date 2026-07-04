@@ -37,6 +37,8 @@ struct CLIArgs {
     var language: String = "en"
     /// When true, print supported languages and exit.
     var listLanguages: Bool = false
+    /// When true, download/ensure the language model and exit (no transcription).
+    var preload: Bool = false
 }
 
 /// Parse command-line arguments.
@@ -51,6 +53,9 @@ func parseArgs() -> CLIArgs {
             i += 2
         } else if args[i] == "--list-languages" {
             result.listLanguages = true
+            i += 1
+        } else if args[i] == "--preload" {
+            result.preload = true
             i += 1
         } else {
             i += 1
@@ -125,6 +130,23 @@ if cliArgs.listLanguages {
     {
         print(jsonString)
     }
+    exit(0)
+}
+
+if cliArgs.preload {
+    if #available(macOS 26, *) {
+        do {
+            let engine = SpeechAnalyzerEngine()
+            try await engine.preloadModel(for: cliArgs.language)
+            fputs("[apple-stt] Model ready for \(cliArgs.language)\n", stderr)
+            exit(0)
+        } catch {
+            fputs("Error: \(error.localizedDescription)\n", stderr)
+            exit(1)
+        }
+    }
+    // SFSpeechRecognizer has no downloadable-asset API here; nothing to preload.
+    fputs("[apple-stt] Preload is a no-op on macOS < 26\n", stderr)
     exit(0)
 }
 
