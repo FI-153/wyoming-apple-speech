@@ -32,14 +32,12 @@ echo "Built: ${SWIFT_BIN}"
 # 2. Create install directory
 echo "Setting up install directory..."
 mkdir -p "${INSTALL_DIR}"
-cp -r "${PROJECT_DIR}/wyoming_apple_stt" "${INSTALL_DIR}/"
-cp "${PROJECT_DIR}/requirements.txt" "${INSTALL_DIR}/"
 cp "${SWIFT_BIN}" "${INSTALL_DIR}/apple-stt"
 
 # 3. Create Python venv
 echo "Creating Python virtual environment..."
 python3 -m venv "${INSTALL_DIR}/venv"
-"${INSTALL_DIR}/venv/bin/pip" install --quiet -r "${INSTALL_DIR}/requirements.txt"
+"${INSTALL_DIR}/venv/bin/pip" install --quiet "${PROJECT_DIR}"
 
 # 4. Create log directory
 mkdir -p "${LOG_DIR}"
