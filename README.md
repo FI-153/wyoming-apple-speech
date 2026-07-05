@@ -1,6 +1,7 @@
 # Wyoming Apple STT
 
-On-device speech-to-text for Home Assistant, powered by Apple's Speech framework.
+On-device speech-to-text **and Siri text-to-speech** for Home Assistant, powered by
+Apple's Speech framework and the Siri speech synthesizer.
 Every word stays on your Mac: no cloud, no API key, no usage limits, full privacy.
 
 <img src="https://github.com/user-attachments/assets/a66196c6-065c-44d0-a381-12261da7d0c8" />
@@ -20,6 +21,28 @@ Every word stays on your Mac: no cloud, no API key, no usage limits, full privac
   (or that macOS has pre-downloaded).
 
 Both engines run fully on-device. SpeechAnalyzer is faster and more precise.
+
+## Text-to-speech (Siri voices) 🗣️
+
+The server also exposes the Mac's Siri voices as a Wyoming TTS service with **streaming
+synthesis**: audio starts flowing to Home Assistant as soon as the first samples are
+generated, sentence by sentence, instead of waiting for the whole reply. To keep latency
+near zero, a synthesis engine is pre-warmed in an idle worker process at all times — when a
+request arrives it starts speaking immediately while a replacement engine spins up in the
+background for concurrent requests.
+
+Only voices that macOS manages itself are offered, because they always match the system's
+Siri engine:
+
+1. Open **System Settings → Siri** (or **Accessibility → Spoken Content**) and select or
+   download the Siri voice(s) you want (e.g. *Siri Voice 5 (German)*).
+2. Restart the server. The voices appear automatically in Home Assistant's voice picker.
+
+If no Siri voice is installed, the server logs a warning and runs STT-only. TTS can also be
+turned off explicitly with `--no-tts` (via `EXTRA_ARGS`).
+
+Useful `EXTRA_ARGS` flags: `--tts-voice <name>` (default voice), `--tts-rate 1.2`
+(speaking speed), `--tts-idle-workers 2` (more pre-warmed engines), `--no-tts`.
 
 ## Install (Homebrew) 🍺
 

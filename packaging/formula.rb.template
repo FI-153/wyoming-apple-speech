@@ -15,6 +15,7 @@ class WyomingAppleStt < Formula
 
   def install
     bin.install "apple-stt"
+    bin.install "apple-tts"
     virtualenv_install_with_resources
 
     conf = etc/"wyoming-apple-stt.conf"
@@ -43,6 +44,7 @@ class WyomingAppleStt < Formula
         --uri "tcp://0.0.0.0:${PORT}" \\
         --language "${LANGUAGE}" \\
         --apple-stt-bin "#{bin}/apple-stt" \\
+        --apple-tts-bin "#{bin}/apple-tts" \\
         ${EXTRA_ARGS}
     EOS
     chmod 0755, libexec/"wyoming-apple-stt-run"
@@ -58,6 +60,8 @@ class WyomingAppleStt < Formula
   test do
     output = shell_output("#{bin}/apple-stt --list-languages")
     assert_match(/"en"/, output)
+    tts_output = shell_output("#{bin}/apple-tts --list-voices")
+    assert_match(/\A\[/, tts_output)
     system libexec/"bin/python", "-c", "import wyoming_apple_stt"
   end
 end

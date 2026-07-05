@@ -19,23 +19,26 @@ DIST_DIR="${REPO_DIR}/dist"
 STAGE_DIR="${DIST_DIR}/wyoming-apple-stt-${VERSION}"
 TARBALL="${DIST_DIR}/wyoming-apple-stt-${VERSION}.tar.gz"
 
-echo "==> Building universal Swift binary"
+echo "==> Building universal Swift binaries"
 cd "${REPO_DIR}/swift"
 swift build -c release --arch arm64 --arch x86_64
-BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/apple-stt"
+BUILD_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
-echo "==> Verifying binary is universal"
-ARCHS="$(lipo -archs "${BIN_PATH}")"
-if [[ "${ARCHS}" != *"arm64"* ]] || [[ "${ARCHS}" != *"x86_64"* ]]; then
-    echo "ERROR: expected universal binary, got: ${ARCHS}" >&2
-    exit 1
-fi
-echo "    archs: ${ARCHS}"
+echo "==> Verifying binaries are universal"
+for binary in apple-stt apple-tts; do
+    ARCHS="$(lipo -archs "${BUILD_DIR}/${binary}")"
+    if [[ "${ARCHS}" != *"arm64"* ]] || [[ "${ARCHS}" != *"x86_64"* ]]; then
+        echo "ERROR: expected universal ${binary}, got: ${ARCHS}" >&2
+        exit 1
+    fi
+    echo "    ${binary} archs: ${ARCHS}"
+done
 
 echo "==> Staging tarball contents at ${STAGE_DIR}"
 rm -rf "${STAGE_DIR}" "${TARBALL}"
 mkdir -p "${STAGE_DIR}"
-cp "${BIN_PATH}" "${STAGE_DIR}/apple-stt"
+cp "${BUILD_DIR}/apple-stt" "${STAGE_DIR}/apple-stt"
+cp "${BUILD_DIR}/apple-tts" "${STAGE_DIR}/apple-tts"
 cp -R "${REPO_DIR}/wyoming_apple_stt" "${STAGE_DIR}/wyoming_apple_stt"
 cp "${REPO_DIR}/pyproject.toml" "${STAGE_DIR}/pyproject.toml"
 cp "${REPO_DIR}/README.md" "${STAGE_DIR}/README.md"

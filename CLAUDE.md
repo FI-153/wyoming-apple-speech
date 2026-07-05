@@ -1,19 +1,30 @@
 # Wyoming Apple STT
 
-A Wyoming protocol STT server that bridges macOS on-device speech recognition (Apple's Speech
-framework) to Home Assistant's Voice pipeline.
+A Wyoming protocol STT + TTS server that bridges macOS on-device speech recognition (Apple's
+Speech framework) and Siri text-to-speech to Home Assistant's Voice pipeline.
 
 ## Project Components
 
-- **swift/** — Swift CLI tool that reads PCM audio from stdin and outputs transcribed text as JSON.
+- **swift/Sources/AppleSTT/** — Swift CLI tool (`apple-stt`) that reads PCM audio from stdin and
+  outputs transcribed text as JSON.
   Uses SpeechAnalyzer on macOS 26+ and SFSpeechRecognizer on older systems.
   - `LocaleMatching.swift` — pure function `bestMatchingLocale(for:in:)` for resolving bare
     language codes (e.g. "en") to full locales (e.g. "en-US") against `SpeechTranscriber.supportedLocales`.
   - `SupportedLanguages.swift` — pure function `languageCodes(from:)` for extracting deduplicated,
     sorted short language codes from a list of locales. Used by `--list-languages` CLI flag.
   - `swift/Tests/AppleSTTTests/` — Swift unit tests (Swift Testing framework).
+- **swift/Sources/AppleTTS/** — Swift CLI tool (`apple-tts`) exposing the private Siri synthesis
+  engine (`SiriTTSService.framework`). Runs as a long-lived worker: JSON commands on stdin,
+  JSON-header + binary PCM frames on stdout. `--list-voices` prints the system-managed Siri
+  voices (the only ones that reliably load; see `context/planning/add-siri-tts-streaming.md`
+  for the engine's lifecycle constraints — engines are never deallocated, init failures are
+  process-fatal by design).
+  - `swift/Tests/AppleTTSTests/` — voice-specifier parsing and asset-discovery tests.
 - **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
-  Assistant, accumulates audio, delegates transcription to the Swift CLI.
+  Assistant, accumulates audio, delegates transcription to the Swift CLI. For TTS, `tts.py`
+  keeps a pool of pre-warmed `apple-tts` workers (acquire triggers a background replacement
+  spawn) and the handler serves both legacy `synthesize` and streaming
+  `synthesize-start/chunk/stop` with sentence-level incremental synthesis.
 - **scripts/** — Install and uninstall scripts for the launchd service.
 - **packaging/** — Release tooling: `build-release-tarball.sh` produces the
   GitHub release artifact; `formula.rb.template` + `python-resources.rb` are

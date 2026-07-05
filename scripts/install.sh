@@ -38,7 +38,9 @@ echo "Building Swift CLI..."
 cd "${PROJECT_DIR}/swift"
 swift build -c release
 SWIFT_BIN="${PROJECT_DIR}/swift/.build/release/apple-stt"
+TTS_BIN="${PROJECT_DIR}/swift/.build/release/apple-tts"
 echo "Built: ${SWIFT_BIN}"
+echo "Built: ${TTS_BIN}"
 
 # 2. Stop any running service before overwriting its files. Copying over the
 #    live binary truncates its inode, breaking the running process's code
@@ -51,6 +53,7 @@ launchctl unload "${PLIST_DIR}/${PLIST_NAME}" 2>/dev/null || true
 echo "Setting up install directory..."
 mkdir -p "${INSTALL_DIR}"
 cp "${SWIFT_BIN}" "${INSTALL_DIR}/apple-stt"
+cp "${TTS_BIN}" "${INSTALL_DIR}/apple-tts"
 
 # 4. Create Python venv
 echo "Creating Python virtual environment..."
@@ -68,6 +71,7 @@ sed \
     -e "s|__VENV_PYTHON__|${INSTALL_DIR}/venv/bin/python|g" \
     -e "s|__PORT__|${PORT}|g" \
     -e "s|__APPLE_STT_BIN__|${INSTALL_DIR}/apple-stt|g" \
+    -e "s|__APPLE_TTS_BIN__|${INSTALL_DIR}/apple-tts|g" \
     -e "s|__LANGUAGE__|${LANGUAGE}|g" \
     -e "s|__LOG_DIR__|${LOG_DIR}|g" \
     -e "s|__INSTALL_DIR__|${INSTALL_DIR}|g" \
