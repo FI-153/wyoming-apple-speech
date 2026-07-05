@@ -21,7 +21,6 @@ framework) to Home Assistant's Voice pipeline.
 
 ## Key References
 
-- **Design spec:** [`context/planning/wyoming-apple-stt-design.md`](context/planning/wyoming-apple-stt-design.md) — read before making architectural changes
 - **Code style:** [`context/styling/formatting.md`](context/styling/formatting.md) — naming, formatting, docstrings for Swift and Python
 
 ## Make Targets

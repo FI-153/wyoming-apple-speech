@@ -1,14 +1,14 @@
 import AVFoundation
 import Speech
 
-/// STT engine using SFSpeechRecognizer (macOS 14+).
+/// STT engine using SFSpeechRecognizer (macOS 15+).
 /// Uses on-device recognition only — no network calls.
 class SFSpeechEngine: STTEngine {
 
     func transcribe(pcmData: Data, language: String) async throws -> String {
         let supportedLocales = Array(SFSpeechRecognizer.supportedLocales())
 
-        // Check if the lanauge is supported among the locales
+        // Check if the language is supported among the locales
         guard let locale = bestMatchingLocale(for: language, in: supportedLocales) else {
             throw STTError.languageNotSupported(language)
         }

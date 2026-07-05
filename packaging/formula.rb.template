@@ -23,6 +23,9 @@ class WyomingAppleStt < Formula
         # Wyoming Apple STT configuration
         # Restart after editing: brew services restart wyoming-apple-stt
         PORT=10300
+        LANGUAGE=en
+        # Extra flags passed to the server, e.g. "--debug" or "--timeout 60"
+        EXTRA_ARGS=""
       EOS
     end
 
@@ -30,13 +33,17 @@ class WyomingAppleStt < Formula
       #!/bin/bash
       set -euo pipefail
       PORT=10300
+      LANGUAGE=en
+      EXTRA_ARGS=""
       CONF="#{etc}/wyoming-apple-stt.conf"
       if [[ -f "${CONF}" ]]; then
         source "${CONF}"
       fi
       exec "#{libexec}/bin/python" -m wyoming_apple_stt \\
         --uri "tcp://0.0.0.0:${PORT}" \\
-        --apple-stt-bin "#{bin}/apple-stt"
+        --language "${LANGUAGE}" \\
+        --apple-stt-bin "#{bin}/apple-stt" \\
+        ${EXTRA_ARGS}
     EOS
     chmod 0755, libexec/"wyoming-apple-stt-run"
   end

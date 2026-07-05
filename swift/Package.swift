@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "AppleSTT",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v15)
     ],
     targets: [
         .executableTarget(
@@ -14,6 +14,12 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("Speech"),
                 .linkedFramework("AVFoundation"),
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "Info.plist",
+                ]),
             ]
         ),
         .testTarget(

@@ -37,6 +37,7 @@ class AppleSTTEventHandler(AsyncEventHandler):
         self._lock = transcription_lock
         self._language: Optional[str] = None
         self._audio_bytes = bytearray()
+        self._buffer_full_warned = False
         self._audio_converter = AudioChunkConverter(
             rate=16000, width=2, channels=1
         )
@@ -55,6 +56,7 @@ class AppleSTTEventHandler(AsyncEventHandler):
             transcribe = Transcribe.from_event(event)
             self._language = transcribe.language
             self._audio_bytes.clear()
+            self._buffer_full_warned = False
             return True
 
         if AudioChunk.is_type(event.type):
@@ -62,14 +64,16 @@ class AppleSTTEventHandler(AsyncEventHandler):
             chunk = self._audio_converter.convert(chunk)
             if len(self._audio_bytes) + len(chunk.audio) <= self._max_audio_bytes:
                 self._audio_bytes.extend(chunk.audio)
-            else:
+            elif not self._buffer_full_warned:
                 _LOGGER.warning("Max audio buffer reached, dropping audio")
+                self._buffer_full_warned = True
             return True
 
         if AudioStop.is_type(event.type):
             text = await self._transcribe()
             await self.write_event(Transcript(text=text).event())
             self._audio_bytes.clear()
+            self._buffer_full_warned = False
             self._language = None
             return False
 
@@ -92,6 +96,14 @@ class AppleSTTEventHandler(AsyncEventHandler):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
+            except OSError as exc:
+                _LOGGER.error(
+                    "Failed to launch apple-stt binary '%s': %s",
+                    self._cli_args.apple_stt_bin,
+                    exc,
+                )
+                return ""
+            try:
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(input=audio_data),
                     timeout=self._cli_args.timeout,
@@ -106,13 +118,18 @@ class AppleSTTEventHandler(AsyncEventHandler):
                 return ""
 
         stderr_text = stderr.decode().strip()
+
+        if process.returncode != 0:
+            _LOGGER.error(
+                "apple-stt failed (exit %d): %s",
+                process.returncode,
+                stderr_text or "(no stderr output)",
+            )
+            return ""
+
         if stderr_text:
             for line in stderr_text.splitlines():
                 _LOGGER.debug("%s", line)
-
-        if process.returncode != 0:
-            _LOGGER.error("apple-stt failed (exit %d)", process.returncode)
-            return ""
 
         try:
             result: dict[str, str] = json.loads(stdout.decode())

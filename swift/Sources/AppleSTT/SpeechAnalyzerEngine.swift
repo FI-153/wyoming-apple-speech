@@ -50,6 +50,9 @@ class SpeechAnalyzerEngine: STTEngine {
                 Double(inputBuffer.frameLength) * analyzerFormat.sampleRate
                     / pcmInputFormat.sampleRate
             )
+            guard convertedCapacity > 0 else {
+                return ""
+            }
             guard
                 let buffer = AVAudioPCMBuffer(
                     pcmFormat: analyzerFormat,
@@ -58,7 +61,26 @@ class SpeechAnalyzerEngine: STTEngine {
             else {
                 throw STTError.bufferCreationFailed
             }
-            try converter.convert(to: buffer, from: inputBuffer)
+
+            // Block-based conversion, unlike convert(to:from:), supports
+            // sample-rate changes. Supply the whole input buffer once, then
+            // signal end-of-stream so the converter drains and finishes.
+            nonisolated(unsafe) var inputSupplied = false
+            var conversionError: NSError?
+            let status = converter.convert(to: buffer, error: &conversionError) {
+                _, outStatus in
+                if inputSupplied {
+                    outStatus.pointee = .endOfStream
+                    return nil
+                }
+                inputSupplied = true
+                outStatus.pointee = .haveData
+                return inputBuffer
+            }
+            if status == .error {
+                throw STTError.recognitionFailed(
+                    conversionError?.localizedDescription ?? "Audio conversion failed.")
+            }
             convertedBuffer = buffer
         }
 
@@ -83,6 +105,27 @@ class SpeechAnalyzerEngine: STTEngine {
         try await analyzer.finalizeAndFinishThroughEndOfInput()
 
         return try await resultTask.value
+    }
+
+    /// Resolve the locale for a language and ensure its on-device model is
+    /// downloaded, without performing any transcription.
+    ///
+    /// Backs the `--preload` CLI path so the potentially slow first-use model
+    /// download happens outside the timeout-bounded transcription request.
+    ///
+    /// - Parameter language: BCP-47 language code (e.g. "en", "en-US").
+    func preloadModel(for language: String) async throws {
+        guard SpeechTranscriber.isAvailable else {
+            throw STTError.recognitionFailed("SpeechTranscriber is not available on this system.")
+        }
+        let locale = try await resolveLocale(language)
+        let transcriber = SpeechTranscriber(
+            locale: locale,
+            transcriptionOptions: [],
+            reportingOptions: [],
+            attributeOptions: []
+        )
+        try await ensureModelDownloaded(for: transcriber, locale: locale)
     }
 
     // MARK: - Private Helpers
@@ -121,14 +164,16 @@ class SpeechAnalyzerEngine: STTEngine {
             return
         }
 
-        if let downloader = try await AssetInventory.assetInstallationRequest(
+        // A nil request means no assets need installing — the model is
+        // already available, so there is nothing to download.
+        guard let downloader = try await AssetInventory.assetInstallationRequest(
             supporting: [transcriber]
-        ) {
-            fputs("[apple-stt] Downloading model for \(locale)...", stderr)
-            try await downloader.downloadAndInstall()
-            fputs("[apple-stt] Download finised for \(locale)", stderr)
-        } else {
-            throw STTError.onDeviceModelNotAvailable
+        ) else {
+            fputs("[apple-stt] Model already available for \(locale)\n", stderr)
+            return
         }
+        fputs("[apple-stt] Downloading model for \(locale)...\n", stderr)
+        try await downloader.downloadAndInstall()
+        fputs("[apple-stt] Download finished for \(locale)\n", stderr)
     }
 }
