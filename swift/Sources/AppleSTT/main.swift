@@ -39,6 +39,8 @@ struct CLIArgs {
     var listLanguages: Bool = false
     /// When true, download/ensure the language model and exit (no transcription).
     var preload: Bool = false
+    /// When true, run as a persistent streaming worker (framed protocol on stdin/stdout).
+    var worker: Bool = false
 }
 
 /// Parse command-line arguments.
@@ -56,6 +58,9 @@ func parseArgs() -> CLIArgs {
             i += 1
         } else if args[i] == "--preload" {
             result.preload = true
+            i += 1
+        } else if args[i] == "--worker" {
+            result.worker = true
             i += 1
         } else {
             i += 1
@@ -147,6 +152,11 @@ if cliArgs.preload {
     }
     // SFSpeechRecognizer has no downloadable-asset API here; nothing to preload.
     fputs("[apple-stt] Preload is a no-op on macOS < 26\n", stderr)
+    exit(0)
+}
+
+if cliArgs.worker {
+    await runWorkerMode(language: cliArgs.language)
     exit(0)
 }
 

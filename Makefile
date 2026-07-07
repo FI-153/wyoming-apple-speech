@@ -32,6 +32,7 @@ build: $(SWIFT_BIN) ## Build the Swift CLI binaries
 
 $(SWIFT_BIN): swift/Package.swift swift/Sources/AppleSTT/*.swift swift/Sources/AppleTTS/*.swift
 	cd swift && swift build -c release
+	codesign -f -s - $(SWIFT_BIN)
 
 test: venv ## Run Python tests
 	$(VENV_PYTHON) -m pytest tests/ -v
@@ -46,6 +47,7 @@ quality: venv ## Run ruff linter and mypy type checker
 run-clean: venv ## Rebuild Swift binaries and start server
 	rm -f $(SWIFT_BIN) $(TTS_BIN)
 	cd swift && swift build -c release
+	codesign -f -s - $(SWIFT_BIN)
 	$(VENV_PYTHON) -m wyoming_apple_stt \
 		--uri tcp://0.0.0.0:$(PORT) \
 		--apple-stt-bin $(SWIFT_BIN) \
