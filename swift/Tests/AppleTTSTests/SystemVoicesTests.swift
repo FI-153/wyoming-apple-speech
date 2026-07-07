@@ -188,4 +188,52 @@ struct SystemVoiceDiscoveryTests {
         ])
         #expect(voices.count == 1)
     }
+
+    @Test("collapses type variants that share language, name, and footprint")
+    func collapsesTypeVariants() throws {
+        // Same name/language/footprint but different type and version: these map to a single
+        // Home Assistant voice_id (name-language-footprint), so discovery must report one entry.
+        let neural = try makeAssetBundle(
+            specifier: "com.apple.siri.tts.voice.en_US.damon.neural.premium",
+            contentVersion: "1301"
+        )
+        let natural = try makeAssetBundle(
+            specifier: "com.apple.siri.tts.voice.en_US.damon.natural.premium",
+            contentVersion: "5030"
+        )
+        defer {
+            try? FileManager.default.removeItem(at: neural.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: natural.deletingLastPathComponent())
+        }
+
+        let voices = discoverSystemVoices(in: [
+            neural.deletingLastPathComponent().path,
+            natural.deletingLastPathComponent().path,
+        ])
+
+        #expect(voices.count == 1)
+        // The higher-version variant wins.
+        #expect(voices.first?.version == 5030)
+        #expect(voices.first?.type == "natural")
+    }
+
+    @Test("keeps voices that differ only by footprint")
+    func keepsDistinctFootprints() throws {
+        let premium = try makeAssetBundle(
+            specifier: "com.apple.siri.tts.voice.en_US.aria.neural.premium"
+        )
+        let compact = try makeAssetBundle(
+            specifier: "com.apple.siri.tts.voice.en_US.aria.neural.compact"
+        )
+        defer {
+            try? FileManager.default.removeItem(at: premium.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: compact.deletingLastPathComponent())
+        }
+
+        let voices = discoverSystemVoices(in: [
+            premium.deletingLastPathComponent().path,
+            compact.deletingLastPathComponent().path,
+        ])
+        #expect(voices.count == 2)
+    }
 }
