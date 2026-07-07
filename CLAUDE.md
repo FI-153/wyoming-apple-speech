@@ -8,6 +8,14 @@ Speech framework) and Siri text-to-speech to Home Assistant's Voice pipeline.
 - **swift/Sources/AppleSTT/** — Swift CLI tool (`apple-stt`) that reads PCM audio from stdin and
   outputs transcribed text as JSON.
   Uses SpeechAnalyzer on macOS 26+ and SFSpeechRecognizer on older systems.
+  With `--worker` it runs as a persistent streaming worker instead: framed JSON commands on
+  stdin (`transcribe` → `audio`+PCM payload → `stop`), `ready`/`partial`/`final`/`error`
+  JSON lines on stdout (`WorkerMode.swift`, `StreamingSession.swift`). The binary must be
+  re-signed after building (`codesign -f -s -`, done by the Makefile) so the embedded
+  Info.plist's speech-recognition usage description is bound into the signature — TCC
+  SIGABRTs the process otherwise. When launched from a terminal/IDE shell, TCC attributes
+  the speech-recognition request to the *responsible process* (the terminal), so test
+  worker mode via launchd (`launchctl submit`) or the installed service.
   - `LocaleMatching.swift` — pure function `bestMatchingLocale(for:in:)` for resolving bare
     language codes (e.g. "en") to full locales (e.g. "en-US") against `SpeechTranscriber.supportedLocales`.
   - `SupportedLanguages.swift` — pure function `languageCodes(from:)` for extracting deduplicated,
@@ -21,7 +29,11 @@ Speech framework) and Siri text-to-speech to Home Assistant's Voice pipeline.
   process-fatal by design).
   - `swift/Tests/AppleTTSTests/` — voice-specifier parsing and asset-discovery tests.
 - **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
-  Assistant, accumulates audio, delegates transcription to the Swift CLI. For TTS, `tts.py`
+  Assistant. For STT, `stt.py` keeps a pool of pre-warmed `apple-stt --worker` processes
+  (mirroring the TTS pool design); the handler streams audio chunks into a worker session as
+  they arrive, forwards partial transcripts as `transcript-chunk` events, and emits the final
+  transcript right after `audio-stop`. Any streaming failure falls back to the buffered
+  one-shot transcription path (audio is always buffered in parallel). For TTS, `tts.py`
   keeps a pool of pre-warmed `apple-tts` workers (acquire triggers a background replacement
   spawn) and the handler serves both legacy `synthesize` and streaming
   `synthesize-start/chunk/stop` with sentence-level incremental synthesis.
