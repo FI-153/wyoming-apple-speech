@@ -45,3 +45,37 @@ struct SupportedLanguagesTests {
         #expect(codes == ["zh"])
     }
 }
+
+@Suite("dictationReadyLocales")
+struct DictationReadyLocalesTests {
+
+    @Test("keeps only locales the predicate marks installed")
+    func filtersToInstalled() {
+        let locales = [
+            Locale(identifier: "de-DE"),
+            Locale(identifier: "fr-FR"),
+            Locale(identifier: "en-US"),
+        ]
+        let installed: Set<String> = ["de-DE", "en-US"]
+        let ready = dictationReadyLocales(from: locales) {
+            installed.contains($0.identifier(.bcp47))
+        }
+        #expect(ready.map { $0.identifier(.bcp47) } == ["de-DE", "en-US"])
+    }
+
+    @Test("falls back to all locales when none are installed")
+    func fallbackWhenNoneInstalled() {
+        let locales = [
+            Locale(identifier: "de-DE"),
+            Locale(identifier: "fr-FR"),
+        ]
+        let ready = dictationReadyLocales(from: locales) { _ in false }
+        #expect(ready == locales)
+    }
+
+    @Test("empty input returns empty array")
+    func emptyInput() {
+        let ready = dictationReadyLocales(from: []) { _ in true }
+        #expect(ready.isEmpty)
+    }
+}
