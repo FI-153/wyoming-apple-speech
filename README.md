@@ -32,17 +32,45 @@ request arrives it starts speaking immediately while a replacement engine spins 
 background for concurrent requests.
 
 Only voices that macOS manages itself are offered, because they always match the system's
-Siri engine:
+Siri engine. macOS only keeps a *full* voice bundle on disk for a voice you've actually
+selected — the language's other voice slots stay as tiny preview-only resource bundles
+until you switch to them, so each voice you want available has to be selected at least
+once:
 
-1. Open **System Settings → Siri** (or **Accessibility → Spoken Content**) and select or
-   download the Siri voice(s) you want (e.g. *Siri Voice 5 (German)*).
-2. Restart the server. The voices appear automatically in Home Assistant's voice picker.
+1. Open **System Settings → Siri → Siri Voice** (or **Accessibility → Spoken Content →
+   System Voice**), pick the language, then select **each voice slot you want** (e.g.
+   *Voice 1*/German "Martin" and *Voice 2*/German "Helena" are separate downloads) and let
+   it finish downloading. You can select a different voice afterwards as your live Siri
+   voice — once downloaded, the bundle stays and stays usable by this server regardless of
+   which one is currently active.
+2. Restart the server. The voices appear automatically in Home Assistant's voice picker
+   (run `swift/.build/release/apple-tts --list-voices` to check what the server currently
+   sees without restarting anything).
 
 If no Siri voice is installed, the server logs a warning and runs STT-only. TTS can also be
 turned off explicitly with `--no-tts` (via `EXTRA_ARGS`).
 
 Useful `EXTRA_ARGS` flags: `--tts-voice <name>` (default voice), `--tts-rate 1.2`
 (speaking speed), `--tts-idle-workers 2` (more pre-warmed engines), `--no-tts`.
+
+### Concurrency model
+
+Each in-flight synthesis runs in its own `apple-tts` worker process, so requests never
+queue behind each other. Beyond the pre-warmed pool (`--tts-idle-workers`, default 1), a
+worker is spawned on demand for every concurrent request with no upper limit — the pool
+only bounds how many engines are kept *pre-warmed*, not how many can run at once. A worker
+that finishes while the pool already has enough idle workers is torn down immediately;
+there's no idle timeout — surplus workers aren't kept around "just in case," and the
+`idle_target` workers that are kept live until the server stops.
+
+In practice this scales with the Mac's CPU: tested on an 8-core Mac mini, 1–80 concurrent
+requests all completed successfully (no errors, no dropped connections) at roughly 55 MB
+resident memory per active worker. Latency stays near-instant (first audio in under
+100 ms) up to about as many concurrent requests as physical cores; beyond that, requests
+queue for CPU time and first-audio latency grows roughly linearly (e.g. ~3–11s at 80
+concurrent requests on 8 cores). This comfortably covers realistic Home Assistant usage
+(one or a handful of simultaneous voice satellites); it isn't tuned for large numbers of
+simultaneous conversations on constrained hardware.
 
 ## Install (Homebrew) 🍺
 
