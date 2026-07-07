@@ -53,11 +53,19 @@ func parseVoiceSpecifier(
     )
 }
 
-/// Whether a voice bundle can be loaded by the system engine on current macOS.
+/// Whether a voice bundle can be loaded *and* synthesized by the system engine on current macOS.
 ///
-/// The engine loads neural voices via their fastspeech2 model data; for tacotron-only
-/// bundles (the 2021 catalog era) init demands emotion resources that no longer exist,
-/// fails, and poisons the process. Such bundles must be refused up front.
+/// Two bundle types are refused up front because both leave the native library in a broken
+/// state rather than failing cleanly:
+///
+/// - Tacotron-only bundles (the 2021 catalog era): the engine loads neural voices via their
+///   fastspeech2 model data, but tacotron-only init demands emotion resources that no longer
+///   exist, fails, and poisons the process.
+/// - Bundles that force the "hydra" text frontend (the en-US / en-GB / en-IN "nashville"
+///   family): init and preheat succeed, but `synthesize` throws `map::at: key not found`
+///   because that frontend needs the shared `com.apple.siri.tts.resource.<lang>` bundle, which
+///   the in-process engine cannot load on macOS 26 — and the failed synthesis poisons the
+///   autorelease pool. See `voiceForcesHydraFrontend(atAssetData:)`.
 ///
 /// - Parameter voicePath: The voice bundle directory.
 /// - Returns: True when the bundle is safe to hand to the engine.
@@ -66,7 +74,35 @@ func voiceIsCompatibleWithSystemEngine(_ voicePath: URL) -> Bool {
     let fileManager = FileManager.default
     let usesTacotron = fileManager.fileExists(atPath: assetData.appendingPathComponent("tacotron").path)
     let hasFastspeech2 = fileManager.fileExists(atPath: assetData.appendingPathComponent("fastspeech2").path)
-    return !usesTacotron || hasFastspeech2
+    if usesTacotron && !hasFastspeech2 {
+        return false
+    }
+    if voiceForcesHydraFrontend(atAssetData: assetData) {
+        return false
+    }
+    return true
+}
+
+/// Whether a voice's frontend config forces the "hydra" text frontend.
+///
+/// These voices carry a `frontend.cfg` with `"force_hydra_fe": true` and depend on the shared
+/// `com.apple.siri.tts.resource.<lang>` bundle for their text-normalization rules. The
+/// in-process engine can't load that bundle on macOS 26, so synthesis throws
+/// `map::at: key not found`. Voices without a `frontend.cfg`, or with the flag absent or false,
+/// use a self-contained frontend and synthesize normally.
+///
+/// - Parameter assetData: The voice bundle's `AssetData` directory.
+/// - Returns: True when the voice forces the hydra frontend.
+func voiceForcesHydraFrontend(atAssetData assetData: URL) -> Bool {
+    let configURL = assetData.appendingPathComponent("frontend.cfg")
+    guard
+        let data = try? Data(contentsOf: configURL),
+        let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let forcesHydra = config["force_hydra_fe"] as? Bool
+    else {
+        return false
+    }
+    return forcesHydra
 }
 
 /// Read one system voice from a `.asset` directory, if it holds a compatible voice.

@@ -56,6 +56,7 @@ struct SystemVoiceDiscoveryTests {
         gender: String? = "female",
         contentVersion: String? = "1328",
         modelDirectories: [String] = ["fastspeech2"],
+        frontendConfig: String? = nil,
         includeAssetData: Bool = true
     ) throws -> URL {
         let root = FileManager.default.temporaryDirectory
@@ -70,6 +71,13 @@ struct SystemVoiceDiscoveryTests {
                 try FileManager.default.createDirectory(
                     at: assetData.appendingPathComponent(model, isDirectory: true),
                     withIntermediateDirectories: true
+                )
+            }
+            if let frontendConfig {
+                try frontendConfig.write(
+                    to: assetData.appendingPathComponent("frontend.cfg"),
+                    atomically: true,
+                    encoding: .utf8
                 )
             }
         }
@@ -128,6 +136,31 @@ struct SystemVoiceDiscoveryTests {
         let asset = try makeAssetBundle(
             specifier: "com.apple.siri.tts.voice.de_DE.helena.neural.premium",
             modelDirectories: ["tacotron", "fastspeech2"]
+        )
+        defer { try? FileManager.default.removeItem(at: asset.deletingLastPathComponent()) }
+
+        #expect(systemVoice(atAssetDirectory: asset) != nil)
+    }
+
+    @Test("rejects voices that force the hydra frontend")
+    func hydraFrontendBundle() throws {
+        // Voices whose frontend.cfg sets force_hydra_fe need the shared
+        // com.apple.siri.tts.resource.<lang> bundle, which the in-process engine can't load on
+        // macOS 26 — synthesis fails with `map::at: key not found`. They must be refused up front.
+        let asset = try makeAssetBundle(
+            specifier: "com.apple.siri.tts.voice.en_US.damon.natural.premium",
+            frontendConfig: #"{"locale": "en-US", "force_hydra_fe": true}"#
+        )
+        defer { try? FileManager.default.removeItem(at: asset.deletingLastPathComponent()) }
+
+        #expect(systemVoice(atAssetDirectory: asset) == nil)
+    }
+
+    @Test("accepts voices whose frontend config does not force hydra")
+    func nonHydraFrontendBundle() throws {
+        let asset = try makeAssetBundle(
+            specifier: "com.apple.siri.tts.voice.en_IE.aidan.natural.premium",
+            frontendConfig: #"{"locale": "en-IE", "force_hydra_fe": false}"#
         )
         defer { try? FileManager.default.removeItem(at: asset.deletingLastPathComponent()) }
 
