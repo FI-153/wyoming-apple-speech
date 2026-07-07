@@ -101,13 +101,16 @@ func systemVoice(atAssetDirectory assetDirectory: URL) -> SystemVoice? {
 
 /// Discover all compatible system-managed Siri voices.
 ///
-/// Duplicate voices across stores (same language, name, and version) are reported once.
+/// Home Assistant keys a voice by `name-language-footprint`, ignoring its model type and
+/// content version. The same speaker therefore ships as several assets that collapse to one
+/// HA voice (e.g. `damon` en-US premium exists as both `neural` and `natural`). Those variants
+/// are reported once here, keeping the one with the highest content version so HA sees no
+/// duplicates.
 ///
 /// - Parameter stores: MobileAsset store directories to scan.
-/// - Returns: The discovered voices, sorted by language then name.
+/// - Returns: The discovered voices, sorted by language, then name, then footprint.
 func discoverSystemVoices(in stores: [String] = defaultVoiceAssetStores) -> [SystemVoice] {
-    var voices: [SystemVoice] = []
-    var seenVoiceKeys: Set<String> = []
+    var bestVoiceByKey: [String: SystemVoice] = [:]
 
     for store in stores {
         let storeURL = URL(fileURLWithPath: store, isDirectory: true)
@@ -120,14 +123,15 @@ func discoverSystemVoices(in stores: [String] = defaultVoiceAssetStores) -> [Sys
         for assetURL in assetURLs where assetURL.pathExtension == "asset" {
             guard let voice = systemVoice(atAssetDirectory: assetURL) else { continue }
 
-            let voiceKey = "\(voice.language)|\(voice.name)|\(voice.version)"
-            if seenVoiceKeys.insert(voiceKey).inserted {
-                voices.append(voice)
+            let voiceKey = "\(voice.language)|\(voice.name)|\(voice.footprint)"
+            if let existing = bestVoiceByKey[voiceKey], existing.version >= voice.version {
+                continue
             }
+            bestVoiceByKey[voiceKey] = voice
         }
     }
 
-    return voices.sorted {
-        ($0.language, $0.name) < ($1.language, $1.name)
+    return bestVoiceByKey.values.sorted {
+        ($0.language, $0.name, $0.footprint) < ($1.language, $1.name, $1.footprint)
     }
 }
