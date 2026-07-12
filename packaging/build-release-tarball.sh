@@ -36,6 +36,10 @@ echo "==> Staging tarball contents at ${STAGE_DIR}"
 rm -rf "${STAGE_DIR}" "${TARBALL}"
 mkdir -p "${STAGE_DIR}"
 cp "${BIN_PATH}" "${STAGE_DIR}/apple-stt"
+# Re-sign so the embedded Info.plist (speech-recognition usage description) is
+# bound into the signature; the linker's ad-hoc signature leaves it unbound and
+# TCC then aborts the process on first SFSpeechRecognizer authorization request.
+codesign -f -s - "${STAGE_DIR}/apple-stt"
 cp -R "${REPO_DIR}/wyoming_apple_stt" "${STAGE_DIR}/wyoming_apple_stt"
 cp "${REPO_DIR}/pyproject.toml" "${STAGE_DIR}/pyproject.toml"
 cp "${REPO_DIR}/README.md" "${STAGE_DIR}/README.md"

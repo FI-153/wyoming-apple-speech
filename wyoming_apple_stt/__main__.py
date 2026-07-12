@@ -11,6 +11,7 @@ from wyoming.info import AsrModel, AsrProgram, Attribution, Info
 from wyoming.server import AsyncServer
 
 from .handler import AppleSTTEventHandler
+from .stt import SttService, SttWorkerPool
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,6 +116,41 @@ async def _preload_model(bin_path: str, language: str) -> None:
         )
 
 
+_APPLE_STT_ATTRIBUTION = Attribution(
+    name="Apple",
+    url="https://developer.apple.com/documentation/speech",
+)
+
+
+def _build_asr_program(languages: list[str]) -> AsrProgram:
+    """Describe the Apple STT service for Wyoming Info.
+
+    Args:
+        languages: BCP-47 language codes the recognizer supports.
+
+    Returns:
+        An AsrProgram advertising streaming transcription support.
+    """
+    return AsrProgram(
+        name="apple-stt",
+        description="Apple on-device speech recognition",
+        attribution=_APPLE_STT_ATTRIBUTION,
+        installed=True,
+        version=None,
+        supports_transcript_streaming=True,
+        models=[
+            AsrModel(
+                name="apple-stt",
+                description="Apple on-device speech recognition",
+                attribution=_APPLE_STT_ATTRIBUTION,
+                installed=True,
+                languages=languages,
+                version=None,
+            )
+        ],
+    )
+
+
 async def main() -> None:
     """Parse args, build Info, and start the Wyoming server."""
     parser = argparse.ArgumentParser(
@@ -148,6 +184,12 @@ async def main() -> None:
         help="Max audio duration to buffer in seconds (default: 60)",
     )
     parser.add_argument(
+        "--stt-idle-workers",
+        type=int,
+        default=1,
+        help="Number of pre-warmed STT worker processes to keep ready (default: 1)",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging",
@@ -165,32 +207,21 @@ async def main() -> None:
     await _preload_model(args.apple_stt_bin, args.language)
 
     wyoming_info = Info(
-        asr=[
-            AsrProgram(
-                name="apple-stt",
-                description="Apple on-device speech recognition",
-                attribution=Attribution(
-                    name="Apple",
-                    url="https://developer.apple.com/documentation/speech",
-                ),
-                installed=True,
-                version=None,
-                models=[
-                    AsrModel(
-                        name="apple-stt",
-                        description="Apple on-device speech recognition",
-                        attribution=Attribution(
-                            name="Apple",
-                            url="https://developer.apple.com/documentation/speech",
-                        ),
-                        installed=True,
-                        languages=languages,
-                        version=None,
-                    )
-                ],
-            )
-        ],
+        asr=[_build_asr_program(languages)],
     )
+
+    stt_service = SttService(
+        pool=SttWorkerPool(
+            args.apple_stt_bin,
+            language=args.language,
+            idle_target=args.stt_idle_workers,
+        ),
+        timeout=args.timeout,
+    )
+    _LOGGER.info(
+        "Pre-warming %d STT worker process(es)...", args.stt_idle_workers
+    )
+    await stt_service.pool.start()
 
     lock = asyncio.Lock()
     server = AsyncServer.from_uri(args.uri)
@@ -201,7 +232,18 @@ async def main() -> None:
         args.language,
     )
 
-    await server.run(partial(AppleSTTEventHandler, wyoming_info, args, lock))
+    try:
+        await server.run(
+            partial(
+                AppleSTTEventHandler,
+                wyoming_info,
+                args,
+                lock,
+                stt_service=stt_service,
+            )
+        )
+    finally:
+        await stt_service.pool.stop()
 
 
 def run() -> None:
