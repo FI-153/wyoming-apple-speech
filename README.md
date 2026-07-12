@@ -21,6 +21,21 @@ Every word stays on your Mac: no cloud, no API key, no usage limits, full privac
 
 Both engines run fully on-device. SpeechAnalyzer is faster and more precise.
 
+## Streaming transcription ⚡
+
+Recognition runs **while you are still speaking**, not after. Audio chunks are fed to a
+persistent `apple-stt --worker` process as they arrive from Home Assistant, partial
+transcripts stream back as Wyoming `transcript-chunk` events, and the final transcript is
+ready within milliseconds of the audio ending — instead of paying for a full recognition
+pass at that point.
+
+Workers are pre-warmed: a worker with a loaded recognition model sits idle at all times
+(`--stt-idle-workers`, default 1), and taking one triggers a background replacement spawn
+so concurrent utterances never wait for model initialization. If the streaming path fails
+for any reason, the server transparently falls back to buffered one-shot transcription of
+the same utterance — no audio is lost.
+
+
 ## Install (Homebrew) 🍺
 
 ```bash

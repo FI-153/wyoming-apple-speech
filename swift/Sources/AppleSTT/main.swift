@@ -39,6 +39,8 @@ struct CLIArgs {
     var listLanguages: Bool = false
     /// When true, download/ensure the language model and exit (no transcription).
     var preload: Bool = false
+    /// When true, run as a persistent streaming worker (framed protocol on stdin/stdout).
+    var worker: Bool = false
 }
 
 /// Parse command-line arguments.
@@ -56,6 +58,9 @@ func parseArgs() -> CLIArgs {
             i += 1
         } else if args[i] == "--preload" {
             result.preload = true
+            i += 1
+        } else if args[i] == "--worker" {
+            result.worker = true
             i += 1
         } else {
             i += 1
@@ -119,11 +124,18 @@ let cliArgs = parseArgs()
 if cliArgs.listLanguages {
     var codes: [String]
     if #available(macOS 26, *) {
+        // SpeechAnalyzer can download missing models via AssetInventory,
+        // so every supported locale is genuinely usable.
         let locales = await SpeechTranscriber.supportedLocales
         codes = languageCodes(from: locales)
     } else {
-        let locales = Array(SFSpeechRecognizer.supportedLocales())
-        codes = languageCodes(from: locales)
+        // SFSpeechRecognizer cannot trigger model downloads, so only
+        // advertise locales whose dictation model is already installed.
+        let supported = Array(SFSpeechRecognizer.supportedLocales())
+        let ready = dictationReadyLocales(from: supported) { locale in
+            SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition == true
+        }
+        codes = languageCodes(from: ready)
     }
     if let jsonData = try? JSONSerialization.data(withJSONObject: codes),
         let jsonString = String(data: jsonData, encoding: .utf8)
@@ -147,6 +159,11 @@ if cliArgs.preload {
     }
     // SFSpeechRecognizer has no downloadable-asset API here; nothing to preload.
     fputs("[apple-stt] Preload is a no-op on macOS < 26\n", stderr)
+    exit(0)
+}
+
+if cliArgs.worker {
+    await runWorkerMode(language: cliArgs.language)
     exit(0)
 }
 

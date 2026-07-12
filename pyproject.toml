@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "wyoming>=1.5.0",
+    "wyoming>=1.8.0",
 ]
 
 [tool.setuptools.packages.find]
