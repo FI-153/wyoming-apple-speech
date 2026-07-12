@@ -38,6 +38,9 @@ echo "Building Swift CLI..."
 cd "${PROJECT_DIR}/swift"
 swift build -c release
 SWIFT_BIN="${PROJECT_DIR}/swift/.build/release/apple-stt"
+# Re-sign so the embedded Info.plist (speech-recognition usage description) is
+# bound into the signature; TCC SIGABRTs worker mode otherwise.
+codesign -f -s - "${SWIFT_BIN}"
 echo "Built: ${SWIFT_BIN}"
 
 # 2. Stop any running service before overwriting its files. Copying over the
