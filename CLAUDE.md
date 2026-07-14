@@ -94,12 +94,22 @@ the user explicitly asks. Stage and commit decisions are always the user's to ma
 
 ## Releasing
 
-Releases are tag-driven. To cut a new release:
+Releases are tag-driven and split into two channels by the tag's shape. To cut a
+**stable** release:
 
 ```bash
 git tag v<major>.<minor>.<patch>
 git push origin v<major>.<minor>.<patch>
 ```
+
+To cut a **beta** release, add a `-beta.<n>` suffix:
+
+```bash
+git tag v<major>.<minor>.<patch>-beta.<n>   # e.g. v1.2.0-beta.1
+git push origin v<major>.<minor>.<patch>-beta.<n>
+```
+
+Both match the same `v*` trigger; the workflow branches on the `-beta` suffix.
 
 The `.github/workflows/release.yml` workflow then:
 
@@ -107,9 +117,19 @@ The `.github/workflows/release.yml` workflow then:
 2. Builds the universal Swift binary via `packaging/build-release-tarball.sh` and
    assembles `wyoming-apple-stt-<version>.tar.gz`.
 3. Creates a GitHub release named after the tag and uploads the tarball as the
-   sole asset.
-4. Renders `packaging/formula.rb.template` with the new version, URL, and sha256,
-   then pushes the resulting `Formula/wyoming-apple-stt.rb` to `FI-153/homebrew-tap`.
+   sole asset — marked as a **prerelease** for beta tags.
+4. Renders `packaging/formula.rb.template` with the new version, URL, sha256, class
+   name, and a `conflicts_with` directive, then pushes the result to
+   `FI-153/homebrew-tap`. Stable tags write `Formula/wyoming-apple-stt.rb` (class
+   `WyomingAppleStt`); beta tags write a separate `Formula/wyoming-apple-stt-beta.rb`
+   (class `WyomingAppleSttBeta`), so the two channels coexist in the tap and never
+   overwrite each other.
+
+The beta uses a `-beta` suffix rather than `@beta` because Homebrew derives a formula's
+Ruby class name from its filename and only maps `@` to `AT` before a digit
+(`python@3.12`), so `wyoming-apple-stt@beta` would be an invalid class. Users install the
+beta with `brew install FI-153/tap/wyoming-apple-stt-beta`; the two formulae
+`conflicts_with` each other, so only one channel is active at a time.
 
 Requirements:
 
