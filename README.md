@@ -1,6 +1,7 @@
 # Wyoming Apple STT
 
-On-device speech-to-text for Home Assistant, powered by Apple's Speech framework.
+On-device speech-to-text **and Siri text-to-speech** for Home Assistant, powered by
+Apple's Speech framework and the Siri speech synthesizer.
 Every word stays on your Mac: no cloud, no API key, no usage limits, full privacy.
 
 <img src="https://github.com/user-attachments/assets/a66196c6-065c-44d0-a381-12261da7d0c8" />
@@ -35,6 +36,55 @@ so concurrent utterances never wait for model initialization. If the streaming p
 for any reason, the server transparently falls back to buffered one-shot transcription of
 the same utterance — no audio is lost.
 
+## Text-to-speech (Siri voices) 🗣️
+
+The server also exposes the Mac's Siri voices as a Wyoming TTS service with **streaming
+synthesis**: audio starts flowing to Home Assistant as soon as the first samples are
+generated, sentence by sentence, instead of waiting for the whole reply. To keep latency
+near zero, a synthesis engine is pre-warmed in an idle worker process at all times — when a
+request arrives it starts speaking immediately while a replacement engine spins up in the
+background for concurrent requests.
+
+Only voices that macOS manages itself are offered, because they always match the system's
+Siri engine. macOS only keeps a *full* voice bundle on disk for a voice you've actually
+selected — the language's other voice slots stay as tiny preview-only resource bundles
+until you switch to them, so each voice you want available has to be selected at least
+once:
+
+1. Open **System Settings → Siri → Siri Voice** (or **Accessibility → Spoken Content →
+   System Voice**), pick the language, then select **each voice slot you want** (e.g.
+   *Voice 1*/German "Martin" and *Voice 2*/German "Helena" are separate downloads) and let
+   it finish downloading. You can select a different voice afterwards as your live Siri
+   voice — once downloaded, the bundle stays and stays usable by this server regardless of
+   which one is currently active.
+2. Restart the server. The voices appear automatically in Home Assistant's voice picker
+   (run `swift/.build/release/apple-tts --list-voices` to check what the server currently
+   sees without restarting anything).
+
+If no Siri voice is installed, the server logs a warning and runs STT-only. TTS can also be
+turned off explicitly with `--no-tts` (via `EXTRA_ARGS`).
+
+Useful `EXTRA_ARGS` flags: `--tts-voice <name>` (default voice), `--tts-rate 1.2`
+(speaking speed), `--tts-idle-workers 2` (more pre-warmed engines), `--no-tts`.
+
+### Concurrency model
+
+Each in-flight synthesis runs in its own `apple-tts` worker process, so requests never
+queue behind each other. Beyond the pre-warmed pool (`--tts-idle-workers`, default 1), a
+worker is spawned on demand for every concurrent request with no upper limit — the pool
+only bounds how many engines are kept *pre-warmed*, not how many can run at once. A worker
+that finishes while the pool already has enough idle workers is torn down immediately;
+there's no idle timeout — surplus workers aren't kept around "just in case," and the
+`idle_target` workers that are kept live until the server stops.
+
+In practice this scales with the Mac's CPU: tested on an 8-core Mac mini, 1–80 concurrent
+requests all completed successfully (no errors, no dropped connections) at roughly 55 MB
+resident memory per active worker. Latency stays near-instant (first audio in under
+100 ms) up to about as many concurrent requests as physical cores; beyond that, requests
+queue for CPU time and first-audio latency grows roughly linearly (e.g. ~3–11s at 80
+concurrent requests on 8 cores). This comfortably covers realistic Home Assistant usage
+(one or a handful of simultaneous voice satellites); it isn't tuned for large numbers of
+simultaneous conversations on constrained hardware.
 
 ## Install (Homebrew) 🍺
 
