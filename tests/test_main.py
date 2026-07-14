@@ -4,7 +4,11 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, Mock, patch
 
-from wyoming_apple_stt.__main__ import _discover_languages, _preload_model
+from wyoming_apple_stt.__main__ import (
+    _build_asr_program,
+    _discover_languages,
+    _preload_model,
+)
 
 
 async def test_preload_model_invokes_cli_with_preload_flag(caplog):
@@ -87,3 +91,9 @@ async def test_preload_model_timeout_kills_process(caplog):
 
     mock_process.kill.assert_called_once()
     assert any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+def test_asr_program_advertises_transcript_streaming():
+    program = _build_asr_program(["en", "de"])
+    assert program.supports_transcript_streaming is True
+    assert program.models[0].languages == ["en", "de"]
