@@ -150,10 +150,11 @@ class AppleSTTEventHandler(AsyncEventHandler):
                 self._tts_splitter = SentenceSplitter()
                 self._tts_audio_started = False
                 self._tts_voice = self._resolve_requested_voice(start.voice)
-                self._tts_worker = await self._tts.pool.acquire()
-                _LOGGER.debug(
-                    "Streaming synthesis started (voice=%s)", self._tts_voice.voice_id
-                )
+                if await self._acquire_tts_worker():
+                    _LOGGER.debug(
+                        "Streaming synthesis started (voice=%s)",
+                        self._tts_voice.voice_id,
+                    )
                 return True
 
             if SynthesizeChunk.is_type(event.type):
@@ -308,6 +309,23 @@ class AppleSTTEventHandler(AsyncEventHandler):
             return self._tts.default_voice
         return resolved
 
+    async def _acquire_tts_worker(self) -> bool:
+        """Take a warm worker from the pool for this request.
+
+        Returns True on success. On failure (e.g. the apple-tts engine can't load a
+        voice), logs the error, leaves `_tts_worker` unset, and returns False so the
+        caller can emit a clean empty audio envelope instead of letting the exception
+        crash the connection — a half-open stream corrupts the client's audio.
+        """
+        assert self._tts is not None
+        try:
+            self._tts_worker = await self._tts.pool.acquire()
+            return True
+        except TtsWorkerError as exc:
+            _LOGGER.error("TTS worker unavailable, returning empty audio: %s", exc)
+            self._tts_worker = None
+            return False
+
     async def _synthesize_complete(self, synthesize: Synthesize) -> None:
         """Serve a non-streaming synthesize request end to end."""
         assert self._tts is not None
@@ -318,7 +336,9 @@ class AppleSTTEventHandler(AsyncEventHandler):
             "Synthesizing %d chars (voice=%s)", len(text), self._tts_voice.voice_id
         )
 
-        self._tts_worker = await self._tts.pool.acquire()
+        if not await self._acquire_tts_worker():
+            await self._finish_audio()
+            return
         try:
             if text:
                 await self._speak_text(text)
@@ -333,6 +353,9 @@ class AppleSTTEventHandler(AsyncEventHandler):
         fresh one and the text retried once; partial-output failures are only
         logged, since retrying would duplicate the already-sent audio.
         """
+        if self._tts_worker is None:
+            # No worker was acquired for this request; the empty envelope stands in.
+            return
         _LOGGER.debug("Speaking %d chars", len(text))
         try:
             await self._stream_frames(text)
@@ -341,8 +364,8 @@ class AppleSTTEventHandler(AsyncEventHandler):
             if self._tts_frames_sent_in_call:
                 # Retrying now would duplicate the audio already delivered.
                 return
-            await self._replace_tts_worker()
             try:
+                await self._replace_tts_worker()
                 await self._stream_frames(text)
             except TtsWorkerError as retry_exc:
                 _LOGGER.error("Retry failed, skipping text: %s", retry_exc)

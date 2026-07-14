@@ -213,6 +213,44 @@ async def test_worker_failure_before_audio_retries_once(tts_handler, tts_service
     assert AudioStop.is_type(events[-1].type)
 
 
+async def test_synthesize_worker_unavailable_sends_empty_envelope(tts_handler, tts_service):
+    """If no worker can be acquired (e.g. the engine can't load a voice), emit a clean
+    empty AudioStart/AudioStop envelope instead of letting the error crash the
+    connection — a half-open stream corrupts Home Assistant's audio (ffmpeg)."""
+    async def failing_acquire():
+        raise TtsWorkerError("engine cannot load voice")
+
+    tts_service.pool.acquire = failing_acquire
+
+    result = await tts_handler.handle_event(Synthesize(text="Hallo Welt.").event())
+
+    assert result is False
+    events = written_events(tts_handler)
+    assert AudioStart.is_type(events[0].type)
+    assert AudioStop.is_type(events[-1].type)
+    assert not any(AudioChunk.is_type(e.type) for e in events)
+
+
+async def test_streaming_worker_unavailable_degrades_gracefully(tts_handler, tts_service):
+    """A worker-acquire failure at synthesize-start must not crash the stream: chunk/stop
+    are handled and stop still emits an envelope plus SynthesizeStopped."""
+    async def failing_acquire():
+        raise TtsWorkerError("engine cannot load voice")
+
+    tts_service.pool.acquire = failing_acquire
+
+    assert await tts_handler.handle_event(SynthesizeStart().event()) is True
+    assert await tts_handler.handle_event(SynthesizeChunk(text="Ein Satz. ").event()) is True
+    result = await tts_handler.handle_event(SynthesizeStop().event())
+
+    assert result is False
+    events = written_events(tts_handler)
+    assert AudioStart.is_type(events[0].type)
+    assert AudioStop.is_type(events[-2].type)
+    assert SynthesizeStopped.is_type(events[-1].type)
+    assert not any(AudioChunk.is_type(e.type) for e in events)
+
+
 async def test_disconnect_disposes_held_worker(tts_handler, tts_service):
     """A client dropping mid-stream must not leak the held worker."""
     await tts_handler.handle_event(SynthesizeStart().event())
