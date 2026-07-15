@@ -64,6 +64,17 @@ once:
 If no Siri voice is installed, the server logs a warning and runs STT-only. TTS can also be
 turned off explicitly with `--no-tts` (via `EXTRA_ARGS`).
 
+> **Full Disk Access is required for TTS.** Neural Siri voices load their model cache from
+> `~/Library/Group Containers/group.com.apple.SiriTTS`, a location macOS protects from
+> background services. Without access the `apple-tts` workers die on startup and Home
+> Assistant gets no audio (ffmpeg then logs `invalid start code [0][0][0][0] in RIFF
+> header`). Grant it once in **System Settings → Privacy & Security → Full Disk Access** by
+> adding the Python that runs the service — for a Homebrew install that is
+> `$(brew --prefix)/opt/python@3.13/Frameworks/Python.framework/Versions/3.13/bin/python3.13`
+> (a manual install uses `~/.local/share/wyoming-apple-stt/venv/bin/python`) — then restart
+> the service. STT works without this; only Siri TTS needs it. Re-grant after a Python
+> version upgrade, since the path changes.
+
 Useful `EXTRA_ARGS` flags: `--tts-voice <name>` (default voice), `--tts-rate 1.2`
 (speaking speed), `--tts-idle-workers 2` (more pre-warmed engines), `--no-tts`.
 
