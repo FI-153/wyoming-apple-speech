@@ -131,7 +131,9 @@ The `.github/workflows/release.yml` workflow then:
 3. Creates a GitHub release named after the tag and uploads the tarball as the
    sole asset — marked as a **prerelease** for beta tags.
 4. Renders `packaging/formula.rb.template` with the new version, URL, sha256, class
-   name, and a `conflicts_with` directive, then pushes the result to
+   name, and a `conflicts_with` directive (emitted only when the other channel's
+   formula exists in the tap — brew warns on conflicts with unknown formulae), then
+   pushes the result to
    `FI-153/homebrew-tap`. Stable tags write `Formula/wyoming-apple-speech.rb` (class
    `WyomingAppleSpeech`); beta tags write a separate `Formula/wyoming-apple-speech-beta.rb`
    (class `WyomingAppleSpeechBeta`), so the two channels coexist in the tap and never

@@ -83,18 +83,27 @@ jobs:
 
           URL="https://github.com/FI-153/wyoming-apple-speech/releases/download/${TAG}/wyoming-apple-speech-${VERSION}.tar.gz"
 
+          git clone "https://x-access-token:${TAP_PUSH_TOKEN}@github.com/FI-153/homebrew-tap.git" tap
+
           URL="${URL}" python3 - <<'PY'
           import os
           from pathlib import Path
 
           # Stable and beta are mutually exclusive: both install the same apple-stt/apple-tts
           # binaries and launchd service. conflicts_with is only enforced from the declaring
-          # side, so each formula names the other.
+          # side, so each formula names the other — but only when the other formula actually
+          # exists in the tap, or brew warns about a conflict with an unknown formula.
           because = "both install the same binaries and launchd service"
           other = "wyoming-apple-speech" if os.environ["CHANNEL"] == "beta" else "wyoming-apple-speech-beta"
-          conflicts = f'conflicts_with "{other}", because: "{because}"'
 
           tpl = Path("packaging/formula.rb.template").read_text()
+          if Path(f"tap/Formula/{other}.rb").exists():
+              tpl = tpl.replace("{{CONFLICTS}}", f'conflicts_with "{other}", because: "{because}"')
+          else:
+              tpl = "".join(
+                  line for line in tpl.splitlines(keepends=True) if "{{CONFLICTS}}" not in line
+              )
+
           resources = Path("packaging/python-resources.rb").read_text().rstrip()
           rendered = (
               tpl
@@ -102,13 +111,10 @@ jobs:
               .replace("{{URL}}", os.environ["URL"])
               .replace("{{VERSION}}", os.environ["VERSION"])
               .replace("{{SHA256}}", os.environ["SHA256"])
-              .replace("{{CONFLICTS}}", conflicts)
               .replace("{{PYTHON_RESOURCES}}", resources)
           )
           Path("rendered-formula.rb").write_text(rendered)
           PY
-
-          git clone "https://x-access-token:${TAP_PUSH_TOKEN}@github.com/FI-153/homebrew-tap.git" tap
           mkdir -p tap/Formula
           mv rendered-formula.rb "tap/${FORMULA_FILE}"
           cd tap
