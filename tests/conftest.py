@@ -12,7 +12,7 @@ def wyoming_info() -> Info:
     return Info(
         asr=[
             AsrProgram(
-                name="apple-stt",
+                name="apple-speech",
                 description="Apple on-device speech recognition",
                 attribution=Attribution(
                     name="Apple",
@@ -22,7 +22,7 @@ def wyoming_info() -> Info:
                 version=None,
                 models=[
                     AsrModel(
-                        name="apple-stt",
+                        name="apple-speech",
                         description="Apple on-device speech recognition",
                         attribution=Attribution(
                             name="Apple",

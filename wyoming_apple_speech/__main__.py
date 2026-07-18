@@ -150,7 +150,7 @@ def _build_asr_program(languages: list[str]) -> AsrProgram:
         An AsrProgram advertising streaming transcription support.
     """
     return AsrProgram(
-        name="apple-stt",
+        name="apple-speech",
         description="Apple on-device speech recognition",
         attribution=_APPLE_STT_ATTRIBUTION,
         installed=True,
@@ -158,7 +158,7 @@ def _build_asr_program(languages: list[str]) -> AsrProgram:
         supports_transcript_streaming=True,
         models=[
             AsrModel(
-                name="apple-stt",
+                name="apple-speech",
                 description="Apple on-device speech recognition",
                 attribution=_APPLE_STT_ATTRIBUTION,
                 installed=True,
@@ -179,7 +179,7 @@ def _build_tts_program(voices: list[SiriVoice]) -> TtsProgram:
         A TtsProgram advertising streaming synthesis support.
     """
     return TtsProgram(
-        name="apple-tts",
+        name="apple-speech",
         description="Apple Siri on-device text-to-speech",
         attribution=_APPLE_TTS_ATTRIBUTION,
         installed=True,

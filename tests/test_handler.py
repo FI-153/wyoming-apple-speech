@@ -42,7 +42,7 @@ async def test_describe_returns_info(handler, wyoming_info):
     written_event = handler.write_event.call_args[0][0]
     info = Info.from_event(written_event)
     assert len(info.asr) == 1
-    assert info.asr[0].name == "apple-stt"
+    assert info.asr[0].name == "apple-speech"
     assert info.asr[0].models[0].languages == ["en"]
 
 
