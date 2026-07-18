@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Wyoming Apple STT — Install Script
+# Wyoming Apple Speech — Install Script
 # Builds Swift binary, sets up Python venv, installs launchd service.
 
-INSTALL_DIR="${HOME}/.local/share/wyoming-apple-stt"
-LOG_DIR="${HOME}/Library/Logs/wyoming-apple-stt"
-PLIST_NAME="com.wyoming-apple-stt.plist"
+INSTALL_DIR="${HOME}/.local/share/wyoming-apple-speech"
+LOG_DIR="${HOME}/Library/Logs/wyoming-apple-speech"
+PLIST_NAME="com.wyoming-apple-speech.plist"
 PLIST_DIR="${HOME}/Library/LaunchAgents"
 
 PORT="${1:-10300}"
@@ -15,7 +15,7 @@ LANGUAGE="${2:-en}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "=== Wyoming Apple STT Installer ==="
+echo "=== Wyoming Apple Speech Installer ==="
 echo ""
 echo "Install dir:  ${INSTALL_DIR}"
 echo "Port:         ${PORT}"
@@ -38,10 +38,12 @@ echo "Building Swift CLI..."
 cd "${PROJECT_DIR}/swift"
 swift build -c release
 SWIFT_BIN="${PROJECT_DIR}/swift/.build/release/apple-stt"
-# Re-sign so the embedded Info.plist (speech-recognition usage description) is
-# bound into the signature; TCC SIGABRTs worker mode otherwise.
+TTS_BIN="${PROJECT_DIR}/swift/.build/release/apple-tts"
+# Re-sign apple-stt so the embedded Info.plist (speech-recognition usage
+# description) is bound into the signature; TCC SIGABRTs worker mode otherwise.
 codesign -f -s - "${SWIFT_BIN}"
 echo "Built: ${SWIFT_BIN}"
+echo "Built: ${TTS_BIN}"
 
 # 2. Stop any running service before overwriting its files. Copying over the
 #    live binary truncates its inode, breaking the running process's code
@@ -54,6 +56,7 @@ launchctl unload "${PLIST_DIR}/${PLIST_NAME}" 2>/dev/null || true
 echo "Setting up install directory..."
 mkdir -p "${INSTALL_DIR}"
 cp "${SWIFT_BIN}" "${INSTALL_DIR}/apple-stt"
+cp "${TTS_BIN}" "${INSTALL_DIR}/apple-tts"
 
 # 4. Create Python venv
 echo "Creating Python virtual environment..."
@@ -71,10 +74,11 @@ sed \
     -e "s|__VENV_PYTHON__|${INSTALL_DIR}/venv/bin/python|g" \
     -e "s|__PORT__|${PORT}|g" \
     -e "s|__APPLE_STT_BIN__|${INSTALL_DIR}/apple-stt|g" \
+    -e "s|__APPLE_TTS_BIN__|${INSTALL_DIR}/apple-tts|g" \
     -e "s|__LANGUAGE__|${LANGUAGE}|g" \
     -e "s|__LOG_DIR__|${LOG_DIR}|g" \
     -e "s|__INSTALL_DIR__|${INSTALL_DIR}|g" \
-    "${PROJECT_DIR}/com.wyoming-apple-stt.plist.template" \
+    "${PROJECT_DIR}/com.wyoming-apple-speech.plist.template" \
     > "${PLIST_DIR}/${PLIST_NAME}"
 
 # 7. Load and start the service
@@ -97,3 +101,12 @@ echo "      service starts without manual intervention."
 echo ""
 echo "NOTE: On first transcription, macOS will prompt for Speech Recognition"
 echo "      permission. You must approve this once."
+echo ""
+echo "NOTE: TTS (Siri voices) needs Full Disk Access. Neural Siri voices load their"
+echo "      model cache from ~/Library/Group Containers/group.com.apple.SiriTTS,"
+echo "      a protected location a background service can't read by default — TTS"
+echo "      workers then die and Home Assistant gets no audio. Grant it once:"
+echo "      System Settings → Privacy & Security → Full Disk Access → add"
+echo "        ${INSTALL_DIR}/venv/bin/python"
+echo "      then: launchctl kickstart -k gui/\$(id -u)/com.wyoming-apple-speech"
+echo "      (STT works without this; only Siri TTS requires it.)"

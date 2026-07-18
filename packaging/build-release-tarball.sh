@@ -4,7 +4,7 @@
 # Usage: packaging/build-release-tarball.sh <version>
 # Example: packaging/build-release-tarball.sh 1.0.0
 #
-# Produces: dist/wyoming-apple-stt-<version>.tar.gz
+# Produces: dist/wyoming-apple-speech-<version>.tar.gz
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -16,38 +16,42 @@ VERSION="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 DIST_DIR="${REPO_DIR}/dist"
-STAGE_DIR="${DIST_DIR}/wyoming-apple-stt-${VERSION}"
-TARBALL="${DIST_DIR}/wyoming-apple-stt-${VERSION}.tar.gz"
+STAGE_DIR="${DIST_DIR}/wyoming-apple-speech-${VERSION}"
+TARBALL="${DIST_DIR}/wyoming-apple-speech-${VERSION}.tar.gz"
 
-echo "==> Building universal Swift binary"
+echo "==> Building universal Swift binaries"
 cd "${REPO_DIR}/swift"
 swift build -c release --arch arm64 --arch x86_64
-BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/apple-stt"
+BUILD_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
-echo "==> Verifying binary is universal"
-ARCHS="$(lipo -archs "${BIN_PATH}")"
-if [[ "${ARCHS}" != *"arm64"* ]] || [[ "${ARCHS}" != *"x86_64"* ]]; then
-    echo "ERROR: expected universal binary, got: ${ARCHS}" >&2
-    exit 1
-fi
-echo "    archs: ${ARCHS}"
+echo "==> Verifying binaries are universal"
+for binary in apple-stt apple-tts; do
+    ARCHS="$(lipo -archs "${BUILD_DIR}/${binary}")"
+    if [[ "${ARCHS}" != *"arm64"* ]] || [[ "${ARCHS}" != *"x86_64"* ]]; then
+        echo "ERROR: expected universal ${binary}, got: ${ARCHS}" >&2
+        exit 1
+    fi
+    echo "    ${binary} archs: ${ARCHS}"
+done
 
 echo "==> Staging tarball contents at ${STAGE_DIR}"
 rm -rf "${STAGE_DIR}" "${TARBALL}"
 mkdir -p "${STAGE_DIR}"
-cp "${BIN_PATH}" "${STAGE_DIR}/apple-stt"
-# Re-sign so the embedded Info.plist (speech-recognition usage description) is
-# bound into the signature; the linker's ad-hoc signature leaves it unbound and
-# TCC then aborts the process on first SFSpeechRecognizer authorization request.
+cp "${BUILD_DIR}/apple-stt" "${STAGE_DIR}/apple-stt"
+cp "${BUILD_DIR}/apple-tts" "${STAGE_DIR}/apple-tts"
+# Re-sign apple-stt so the embedded Info.plist (speech-recognition usage
+# description) is bound into the signature; the linker's ad-hoc signature leaves
+# it unbound and TCC then aborts the process on first SFSpeechRecognizer
+# authorization request. apple-tts uses no speech-recognition entitlement.
 codesign -f -s - "${STAGE_DIR}/apple-stt"
-cp -R "${REPO_DIR}/wyoming_apple_stt" "${STAGE_DIR}/wyoming_apple_stt"
+cp -R "${REPO_DIR}/wyoming_apple_speech" "${STAGE_DIR}/wyoming_apple_speech"
 cp "${REPO_DIR}/pyproject.toml" "${STAGE_DIR}/pyproject.toml"
 cp "${REPO_DIR}/README.md" "${STAGE_DIR}/README.md"
 # Drop any __pycache__ copied in.
-find "${STAGE_DIR}/wyoming_apple_stt" -type d -name __pycache__ -exec rm -rf {} +
+find "${STAGE_DIR}/wyoming_apple_speech" -type d -name __pycache__ -exec rm -rf {} +
 
 echo "==> Creating tarball"
-tar -czf "${TARBALL}" -C "${DIST_DIR}" "wyoming-apple-stt-${VERSION}"
+tar -czf "${TARBALL}" -C "${DIST_DIR}" "wyoming-apple-speech-${VERSION}"
 
 echo "==> Computing SHA-256"
 SHA="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"

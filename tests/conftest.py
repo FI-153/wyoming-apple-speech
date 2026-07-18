@@ -1,4 +1,4 @@
-"""Shared fixtures for Wyoming Apple STT tests."""
+"""Shared fixtures for Wyoming Apple Speech tests."""
 
 import argparse
 

@@ -4,6 +4,6 @@
 <plist version="1.0">
 <dict>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Wyoming Apple STT uses on-device speech recognition to transcribe audio for Home Assistant.</string>
+    <string>Wyoming Apple Speech uses on-device speech recognition to transcribe audio for Home Assistant.</string>
 </dict>
 </plist>

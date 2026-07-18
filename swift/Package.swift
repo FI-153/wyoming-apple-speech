@@ -22,10 +22,19 @@ let package = Package(
                 ]),
             ]
         ),
+        .executableTarget(
+            name: "apple-tts",
+            path: "Sources/AppleTTS"
+        ),
         .testTarget(
             name: "AppleSTTTests",
             dependencies: ["apple-stt"],
             path: "Tests/AppleSTTTests"
+        ),
+        .testTarget(
+            name: "AppleTTSTests",
+            dependencies: ["apple-tts"],
+            path: "Tests/AppleTTSTests"
         ),
     ]
 )

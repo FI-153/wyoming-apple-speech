@@ -4,17 +4,19 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.wyoming-apple-stt</string>
+    <string>com.wyoming-apple-speech</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>__VENV_PYTHON__</string>
         <string>-m</string>
-        <string>wyoming_apple_stt</string>
+        <string>wyoming_apple_speech</string>
         <string>--uri</string>
         <string>tcp://0.0.0.0:__PORT__</string>
         <string>--apple-stt-bin</string>
         <string>__APPLE_STT_BIN__</string>
+        <string>--apple-tts-bin</string>
+        <string>__APPLE_TTS_BIN__</string>
         <string>--language</string>
         <string>__LANGUAGE__</string>
     </array>

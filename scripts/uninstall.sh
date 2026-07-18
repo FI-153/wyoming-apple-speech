@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Wyoming Apple STT — Uninstall Script
+# Wyoming Apple Speech — Uninstall Script
 
-INSTALL_DIR="${HOME}/.local/share/wyoming-apple-stt"
-LOG_DIR="${HOME}/Library/Logs/wyoming-apple-stt"
-PLIST_NAME="com.wyoming-apple-stt.plist"
+INSTALL_DIR="${HOME}/.local/share/wyoming-apple-speech"
+LOG_DIR="${HOME}/Library/Logs/wyoming-apple-speech"
+PLIST_NAME="com.wyoming-apple-speech.plist"
 PLIST_PATH="${HOME}/Library/LaunchAgents/${PLIST_NAME}"
 
-echo "=== Wyoming Apple STT Uninstaller ==="
+echo "=== Wyoming Apple Speech Uninstaller ==="
 echo ""
 
 # 1. Stop and unload the service

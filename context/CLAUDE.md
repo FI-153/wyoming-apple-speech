@@ -1,6 +1,6 @@
 # Context Folder Guide
 
-This folder provides background knowledge, style rules, and agent plans for the wyoming-apple-stt
+This folder provides background knowledge, style rules, and agent plans for the wyoming-apple-speech
 project. Claude Code loads this file automatically when accessing any file under `context/`.
 
 ## Folder Map
@@ -29,7 +29,7 @@ context/
 
 ## `planning/` — Design specs and implementation plans
 
-- [`wyoming-apple-stt-design.md`](planning/wyoming-apple-stt-design.md) — Full design spec:
+- [`wyoming-apple-speech-design.md`](planning/wyoming-apple-speech-design.md) — Full design spec:
   architecture, Swift CLI details, Python Wyoming server, launchd service, and distribution.
 - Design and implementation plans for a given task **must** be in the same file.
 - Before implementing any non-trivial task, write a plan here and wait for user approval.

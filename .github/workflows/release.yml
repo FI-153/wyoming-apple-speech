@@ -16,13 +16,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve version
+      - name: Resolve version and channel
         id: version
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
+
+          # A -beta suffix (e.g. v1.2.0-beta.1) selects the beta channel: a GitHub
+          # prerelease and a separate wyoming-apple-speech-beta formula that coexists with,
+          # and conflicts with, the stable one.
+          if [[ "${TAG}" == *-beta* ]]; then
+            CHANNEL="beta"
+            FORMULA_NAME="wyoming-apple-speech-beta"
+            FORMULA_CLASS="WyomingAppleSpeechBeta"
+          else
+            CHANNEL="stable"
+            FORMULA_NAME="wyoming-apple-speech"
+            FORMULA_CLASS="WyomingAppleSpeech"
+          fi
+
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
+          echo "formula_name=${FORMULA_NAME}" >> "$GITHUB_OUTPUT"
+          echo "formula_class=${FORMULA_CLASS}" >> "$GITHUB_OUTPUT"
+          echo "formula_file=Formula/${FORMULA_NAME}.rb" >> "$GITHUB_OUTPUT"
 
       - name: Run Swift tests
         run: make swift-test
@@ -31,7 +49,7 @@ jobs:
         id: tarball
         run: |
           ./packaging/build-release-tarball.sh "${{ steps.version.outputs.version }}"
-          TARBALL="dist/wyoming-apple-stt-${{ steps.version.outputs.version }}.tar.gz"
+          TARBALL="dist/wyoming-apple-speech-${{ steps.version.outputs.version }}.tar.gz"
           SHA="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"
           echo "path=${TARBALL}" >> "$GITHUB_OUTPUT"
           echo "sha256=${SHA}" >> "$GITHUB_OUTPUT"
@@ -40,42 +58,62 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          PRERELEASE_FLAG=()
+          if [[ "${{ steps.version.outputs.channel }}" == "beta" ]]; then
+            PRERELEASE_FLAG=(--prerelease)
+          fi
           gh release create "${{ steps.version.outputs.tag }}" \
             "${{ steps.tarball.outputs.path }}" \
             --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes
+            --generate-notes \
+            "${PRERELEASE_FLAG[@]}"
 
       - name: Render formula and push to tap
         env:
           TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
           SHA256: ${{ steps.tarball.outputs.sha256 }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
+          FORMULA_NAME: ${{ steps.version.outputs.formula_name }}
+          FORMULA_CLASS: ${{ steps.version.outputs.formula_class }}
+          FORMULA_FILE: ${{ steps.version.outputs.formula_file }}
         run: |
           set -euo pipefail
 
-          URL="https://github.com/FI-153/wyoming-apple-stt/releases/download/v${VERSION}/wyoming-apple-stt-${VERSION}.tar.gz"
+          URL="https://github.com/FI-153/wyoming-apple-speech/releases/download/${TAG}/wyoming-apple-speech-${VERSION}.tar.gz"
 
           URL="${URL}" python3 - <<'PY'
           import os
           from pathlib import Path
+
+          # Stable and beta are mutually exclusive: both install the same apple-stt/apple-tts
+          # binaries and launchd service. conflicts_with is only enforced from the declaring
+          # side, so each formula names the other.
+          because = "both install the same binaries and launchd service"
+          other = "wyoming-apple-speech" if os.environ["CHANNEL"] == "beta" else "wyoming-apple-speech-beta"
+          conflicts = f'conflicts_with "{other}", because: "{because}"'
+
           tpl = Path("packaging/formula.rb.template").read_text()
           resources = Path("packaging/python-resources.rb").read_text().rstrip()
           rendered = (
               tpl
+              .replace("{{CLASS}}", os.environ["FORMULA_CLASS"])
               .replace("{{URL}}", os.environ["URL"])
               .replace("{{VERSION}}", os.environ["VERSION"])
               .replace("{{SHA256}}", os.environ["SHA256"])
+              .replace("{{CONFLICTS}}", conflicts)
               .replace("{{PYTHON_RESOURCES}}", resources)
           )
-          Path("wyoming-apple-stt.rb").write_text(rendered)
+          Path("rendered-formula.rb").write_text(rendered)
           PY
 
           git clone "https://x-access-token:${TAP_PUSH_TOKEN}@github.com/FI-153/homebrew-tap.git" tap
           mkdir -p tap/Formula
-          mv wyoming-apple-stt.rb tap/Formula/wyoming-apple-stt.rb
+          mv rendered-formula.rb "tap/${FORMULA_FILE}"
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/wyoming-apple-stt.rb
-          git commit -m "wyoming-apple-stt ${VERSION}"
+          git add "${FORMULA_FILE}"
+          git commit -m "${FORMULA_NAME} ${VERSION}"
           git push origin HEAD:main

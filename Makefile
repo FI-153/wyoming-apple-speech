@@ -4,13 +4,14 @@ VENV_DIR := .venv
 VENV_PYTHON := $(VENV_DIR)/bin/python
 VENV_PIP := $(VENV_DIR)/bin/pip
 SWIFT_BIN := swift/.build/release/apple-stt
+TTS_BIN := swift/.build/release/apple-tts
 PORT ?= 10300
 LANGUAGE ?= en
 
 .PHONY: help venv build test swift-test quality run run-clean stop install uninstall clean
 
 help: ## Show this help message
-	@echo "Wyoming Apple STT"
+	@echo "Wyoming Apple Speech"
 	@echo ""
 	@echo "Usage: make <target>"
 	@echo ""
@@ -27,9 +28,9 @@ $(VENV_DIR)/bin/activate: requirements-dev.txt requirements.txt
 	$(VENV_PIP) install --quiet -r requirements-dev.txt
 	touch $(VENV_DIR)/bin/activate
 
-build: $(SWIFT_BIN) ## Build the Swift CLI binary
+build: $(SWIFT_BIN) ## Build the Swift CLI binaries
 
-$(SWIFT_BIN): swift/Package.swift swift/Sources/AppleSTT/*.swift
+$(SWIFT_BIN): swift/Package.swift swift/Sources/AppleSTT/*.swift swift/Sources/AppleTTS/*.swift
 	cd swift && swift build -c release
 	codesign -f -s - $(SWIFT_BIN)
 
@@ -40,23 +41,25 @@ swift-test: ## Run Swift unit tests
 	cd swift && swift build --build-tests && swift test --skip-build
 
 quality: venv ## Run ruff linter and mypy type checker
-	$(VENV_DIR)/bin/ruff check wyoming_apple_stt/ tests/
-	$(VENV_DIR)/bin/mypy wyoming_apple_stt/
+	$(VENV_DIR)/bin/ruff check wyoming_apple_speech/ tests/
+	$(VENV_DIR)/bin/mypy wyoming_apple_speech/
 
-run-clean: venv ## Rebuild Swift binary and start server
-	rm -f $(SWIFT_BIN)
+run-clean: venv ## Rebuild Swift binaries and start server
+	rm -f $(SWIFT_BIN) $(TTS_BIN)
 	cd swift && swift build -c release
 	codesign -f -s - $(SWIFT_BIN)
-	$(VENV_PYTHON) -m wyoming_apple_stt \
+	$(VENV_PYTHON) -m wyoming_apple_speech \
 		--uri tcp://0.0.0.0:$(PORT) \
 		--apple-stt-bin $(SWIFT_BIN) \
+		--apple-tts-bin $(TTS_BIN) \
 		--language $(LANGUAGE) \
 		--debug
 
 run: venv build ## Run the server locally (Ctrl+C to stop)
-	$(VENV_PYTHON) -m wyoming_apple_stt \
+	$(VENV_PYTHON) -m wyoming_apple_speech \
 		--uri tcp://0.0.0.0:$(PORT) \
 		--apple-stt-bin $(SWIFT_BIN) \
+		--apple-tts-bin $(TTS_BIN) \
 		--language $(LANGUAGE) \
 		--debug
 

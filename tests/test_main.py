@@ -1,10 +1,10 @@
-"""Tests for the Wyoming Apple STT server entry point."""
+"""Tests for the Wyoming Apple Speech server entry point."""
 
 import asyncio
 import logging
 from unittest.mock import AsyncMock, Mock, patch
 
-from wyoming_apple_stt.__main__ import (
+from wyoming_apple_speech.__main__ import (
     _build_asr_program,
     _discover_languages,
     _preload_model,
@@ -18,7 +18,7 @@ async def test_preload_model_invokes_cli_with_preload_flag(caplog):
     mock_process.returncode = 0
 
     with patch(
-        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.__main__.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ) as mock_exec:
         with caplog.at_level(logging.INFO):
@@ -39,7 +39,7 @@ async def test_preload_model_nonzero_exit_does_not_raise(caplog):
     mock_process.returncode = 1
 
     with patch(
-        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.__main__.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         with caplog.at_level(logging.WARNING):
@@ -51,7 +51,7 @@ async def test_preload_model_nonzero_exit_does_not_raise(caplog):
 async def test_preload_model_missing_binary_does_not_raise(caplog):
     """A missing binary must not prevent server startup."""
     with patch(
-        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.__main__.asyncio.create_subprocess_exec",
         side_effect=FileNotFoundError("no such file"),
     ):
         with caplog.at_level(logging.WARNING):
@@ -67,7 +67,7 @@ async def test_discover_languages_timeout_kills_process():
     mock_process.kill = Mock()
 
     with patch(
-        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.__main__.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         result = await _discover_languages("/usr/local/bin/apple-stt", "en")
@@ -83,7 +83,7 @@ async def test_preload_model_timeout_kills_process(caplog):
     mock_process.kill = Mock()
 
     with patch(
-        "wyoming_apple_stt.__main__.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.__main__.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         with caplog.at_level(logging.WARNING):

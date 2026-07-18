@@ -14,8 +14,8 @@ from wyoming.asr import (
 )
 from wyoming.audio import AudioChunk, AudioStop
 
-from wyoming_apple_stt.handler import AppleSTTEventHandler
-from wyoming_apple_stt.stt import SttService, SttWorkerError
+from wyoming_apple_speech.handler import AppleSTTEventHandler
+from wyoming_apple_speech.stt import SttService, SttWorkerError
 
 
 class FakeSession:
@@ -159,7 +159,7 @@ async def test_acquire_failure_falls_back_to_buffered(stt_handler, stt_service):
     mock_process.returncode = 0
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         result = await run_utterance(stt_handler, [b"\x00\x00" * 100])
@@ -190,7 +190,7 @@ async def test_finish_failure_falls_back_to_buffered(stt_handler, stt_service):
     session.fail_finish = "recognizer exploded"
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         result = await stt_handler.handle_event(AudioStop().event())
@@ -227,7 +227,7 @@ async def test_send_failure_mid_stream_falls_back(stt_handler, stt_service):
     assert len(stt_service.pool.workers) == 1
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ) as mock_exec:
         result = await stt_handler.handle_event(AudioStop().event())
@@ -260,7 +260,7 @@ async def test_no_stt_service_keeps_legacy_shape(wyoming_info, cli_args):
     mock_process.returncode = 0
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         result = await run_utterance(handler, [b"\x00\x00" * 100])
@@ -293,7 +293,7 @@ async def test_second_utterance_after_failure_streams_again(stt_handler, stt_ser
     await stt_handler.handle_event(event)
     stt_service.pool.workers[0].sessions[0].fail_finish = "boom"
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         await stt_handler.handle_event(AudioStop().event())

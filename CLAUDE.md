@@ -1,11 +1,12 @@
-# Wyoming Apple STT
+# Wyoming Apple Speech
 
-A Wyoming protocol STT server that bridges macOS on-device speech recognition (Apple's Speech
-framework) to Home Assistant's Voice pipeline.
+A Wyoming protocol STT + TTS server that bridges macOS on-device speech recognition (Apple's
+Speech framework) and Siri text-to-speech to Home Assistant's Voice pipeline.
 
 ## Project Components
 
-- **swift/** — Swift CLI tool that reads PCM audio from stdin and outputs transcribed text as JSON.
+- **swift/Sources/AppleSTT/** — Swift CLI tool (`apple-stt`) that reads PCM audio from stdin and
+  outputs transcribed text as JSON.
   Uses SpeechAnalyzer on macOS 26+ and SFSpeechRecognizer on older systems.
   With `--worker` it runs as a persistent streaming worker instead: framed JSON commands on
   stdin (`transcribe` → `audio`+PCM payload → `stop`), `ready`/`partial`/`final`/`error`
@@ -20,12 +21,22 @@ framework) to Home Assistant's Voice pipeline.
   - `SupportedLanguages.swift` — pure function `languageCodes(from:)` for extracting deduplicated,
     sorted short language codes from a list of locales. Used by `--list-languages` CLI flag.
   - `swift/Tests/AppleSTTTests/` — Swift unit tests (Swift Testing framework).
-- **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
-  Assistant. `stt.py` keeps a pool of pre-warmed `apple-stt --worker` processes; the handler
-  streams audio chunks into a worker session as they arrive, forwards partial transcripts as
-  `transcript-chunk` events, and emits the final transcript right after `audio-stop`. Any
-  streaming failure falls back to the buffered one-shot transcription path (audio is always
-  buffered in parallel).
+- **swift/Sources/AppleTTS/** — Swift CLI tool (`apple-tts`) exposing the private Siri synthesis
+  engine (`SiriTTSService.framework`). Runs as a long-lived worker: JSON commands on stdin,
+  JSON-header + binary PCM frames on stdout. `--list-voices` prints the system-managed Siri
+  voices (the only ones that reliably load; see `context/planning/add-siri-tts-streaming.md`
+  for the engine's lifecycle constraints — engines are never deallocated, init failures are
+  process-fatal by design).
+  - `swift/Tests/AppleTTSTests/` — voice-specifier parsing and asset-discovery tests.
+- **wyoming_apple_speech/** — Python Wyoming protocol server. Handles TCP connections from Home
+  Assistant. For STT, `stt.py` keeps a pool of pre-warmed `apple-stt --worker` processes
+  (mirroring the TTS pool design); the handler streams audio chunks into a worker session as
+  they arrive, forwards partial transcripts as `transcript-chunk` events, and emits the final
+  transcript right after `audio-stop`. Any streaming failure falls back to the buffered
+  one-shot transcription path (audio is always buffered in parallel). For TTS, `tts.py`
+  keeps a pool of pre-warmed `apple-tts` workers (acquire triggers a background replacement
+  spawn) and the handler serves both legacy `synthesize` and streaming
+  `synthesize-start/chunk/stop` with sentence-level incremental synthesis.
 - **scripts/** — Install and uninstall scripts for the launchd service.
 - **packaging/** — Release tooling: `build-release-tarball.sh` produces the
   GitHub release artifact; `formula.rb.template` + `python-resources.rb` are
@@ -95,22 +106,42 @@ the user explicitly asks. Stage and commit decisions are always the user's to ma
 
 ## Releasing
 
-Releases are tag-driven. To cut a new release:
+Releases are tag-driven and split into two channels by the tag's shape. To cut a
+**stable** release:
 
 ```bash
 git tag v<major>.<minor>.<patch>
 git push origin v<major>.<minor>.<patch>
 ```
 
+To cut a **beta** release, add a `-beta.<n>` suffix:
+
+```bash
+git tag v<major>.<minor>.<patch>-beta.<n>   # e.g. v1.2.0-beta.1
+git push origin v<major>.<minor>.<patch>-beta.<n>
+```
+
+Both match the same `v*` trigger; the workflow branches on the `-beta` suffix.
+
 The `.github/workflows/release.yml` workflow then:
 
 1. Runs `make swift-test` and aborts on failure.
 2. Builds the universal Swift binary via `packaging/build-release-tarball.sh` and
-   assembles `wyoming-apple-stt-<version>.tar.gz`.
+   assembles `wyoming-apple-speech-<version>.tar.gz`.
 3. Creates a GitHub release named after the tag and uploads the tarball as the
-   sole asset.
-4. Renders `packaging/formula.rb.template` with the new version, URL, and sha256,
-   then pushes the resulting `Formula/wyoming-apple-stt.rb` to `FI-153/homebrew-tap`.
+   sole asset — marked as a **prerelease** for beta tags.
+4. Renders `packaging/formula.rb.template` with the new version, URL, sha256, class
+   name, and a `conflicts_with` directive, then pushes the result to
+   `FI-153/homebrew-tap`. Stable tags write `Formula/wyoming-apple-speech.rb` (class
+   `WyomingAppleSpeech`); beta tags write a separate `Formula/wyoming-apple-speech-beta.rb`
+   (class `WyomingAppleSpeechBeta`), so the two channels coexist in the tap and never
+   overwrite each other.
+
+The beta uses a `-beta` suffix rather than `@beta` because Homebrew derives a formula's
+Ruby class name from its filename and only maps `@` to `AT` before a digit
+(`python@3.12`), so `wyoming-apple-speech@beta` would be an invalid class. Users install the
+beta with `brew install FI-153/tap/wyoming-apple-speech-beta`; the two formulae
+`conflicts_with` each other, so only one channel is active at a time.
 
 Requirements:
 
