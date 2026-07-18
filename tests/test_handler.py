@@ -1,4 +1,4 @@
-"""Tests for the Wyoming Apple STT event handler."""
+"""Tests for the Wyoming Apple Speech event handler."""
 
 import argparse
 import asyncio
@@ -11,7 +11,7 @@ from wyoming.asr import Transcribe, Transcript
 from wyoming.audio import AudioChunk, AudioStop
 from wyoming.info import Describe, Info
 
-from wyoming_apple_stt.handler import AppleSTTEventHandler
+from wyoming_apple_speech.handler import AppleSTTEventHandler
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ async def test_transcription_flow(handler):
     mock_process.returncode = 0
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ) as mock_exec:
         result = await handler.handle_event(AudioStop().event())
@@ -127,7 +127,7 @@ async def test_subprocess_failure_returns_empty(handler):
     mock_process.returncode = 1
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         result = await handler.handle_event(AudioStop().event())
@@ -150,7 +150,7 @@ async def test_subprocess_timeout_returns_empty(handler):
     mock_process.kill = Mock()
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         result = await handler.handle_event(AudioStop().event())
@@ -192,7 +192,7 @@ async def test_serialization_lock(handler, wyoming_info, cli_args, transcription
     mock_process.returncode = 0
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         # Run both transcriptions concurrently
@@ -235,7 +235,7 @@ async def test_default_language_from_cli_args(wyoming_info, cli_args, transcript
     mock_process.returncode = 0
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ) as mock_exec:
         await it_handler.handle_event(AudioStop().event())
@@ -252,7 +252,7 @@ async def test_missing_binary_returns_empty_transcript(handler, caplog):
     await handler.handle_event(chunk.event())
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         side_effect=FileNotFoundError("No such file or directory"),
     ):
         with caplog.at_level(logging.ERROR):
@@ -277,7 +277,7 @@ async def test_subprocess_failure_logs_stderr_at_error(handler, caplog):
     mock_process.returncode = 1
 
     with patch(
-        "wyoming_apple_stt.handler.asyncio.create_subprocess_exec",
+        "wyoming_apple_speech.handler.asyncio.create_subprocess_exec",
         return_value=mock_process,
     ):
         with caplog.at_level(logging.ERROR):

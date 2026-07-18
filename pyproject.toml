@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "wyoming-apple-stt"
+name = "wyoming-apple-speech"
 version = "0.0.0"
-description = "Wyoming protocol STT server backed by Apple's Speech framework"
+description = "Wyoming protocol STT + TTS server backed by Apple's Speech framework and Siri voices"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["wyoming_apple_stt*"]
+include = ["wyoming_apple_speech*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

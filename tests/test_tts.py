@@ -6,7 +6,7 @@ import stat
 
 import pytest
 
-from wyoming_apple_stt.tts import (
+from wyoming_apple_speech.tts import (
     SentenceSplitter,
     SiriVoice,
     TtsWorker,

@@ -1,4 +1,4 @@
-# Wyoming Apple STT
+# Wyoming Apple Speech
 
 A Wyoming protocol STT + TTS server that bridges macOS on-device speech recognition (Apple's
 Speech framework) and Siri text-to-speech to Home Assistant's Voice pipeline.
@@ -28,7 +28,7 @@ Speech framework) and Siri text-to-speech to Home Assistant's Voice pipeline.
   for the engine's lifecycle constraints — engines are never deallocated, init failures are
   process-fatal by design).
   - `swift/Tests/AppleTTSTests/` — voice-specifier parsing and asset-discovery tests.
-- **wyoming_apple_stt/** — Python Wyoming protocol server. Handles TCP connections from Home
+- **wyoming_apple_speech/** — Python Wyoming protocol server. Handles TCP connections from Home
   Assistant. For STT, `stt.py` keeps a pool of pre-warmed `apple-stt --worker` processes
   (mirroring the TTS pool design); the handler streams audio chunks into a worker session as
   they arrive, forwards partial transcripts as `transcript-chunk` events, and emits the final
@@ -127,20 +127,20 @@ The `.github/workflows/release.yml` workflow then:
 
 1. Runs `make swift-test` and aborts on failure.
 2. Builds the universal Swift binary via `packaging/build-release-tarball.sh` and
-   assembles `wyoming-apple-stt-<version>.tar.gz`.
+   assembles `wyoming-apple-speech-<version>.tar.gz`.
 3. Creates a GitHub release named after the tag and uploads the tarball as the
    sole asset — marked as a **prerelease** for beta tags.
 4. Renders `packaging/formula.rb.template` with the new version, URL, sha256, class
    name, and a `conflicts_with` directive, then pushes the result to
-   `FI-153/homebrew-tap`. Stable tags write `Formula/wyoming-apple-stt.rb` (class
-   `WyomingAppleStt`); beta tags write a separate `Formula/wyoming-apple-stt-beta.rb`
-   (class `WyomingAppleSttBeta`), so the two channels coexist in the tap and never
+   `FI-153/homebrew-tap`. Stable tags write `Formula/wyoming-apple-speech.rb` (class
+   `WyomingAppleSpeech`); beta tags write a separate `Formula/wyoming-apple-speech-beta.rb`
+   (class `WyomingAppleSpeechBeta`), so the two channels coexist in the tap and never
    overwrite each other.
 
 The beta uses a `-beta` suffix rather than `@beta` because Homebrew derives a formula's
 Ruby class name from its filename and only maps `@` to `AT` before a digit
-(`python@3.12`), so `wyoming-apple-stt@beta` would be an invalid class. Users install the
-beta with `brew install FI-153/tap/wyoming-apple-stt-beta`; the two formulae
+(`python@3.12`), so `wyoming-apple-speech@beta` would be an invalid class. Users install the
+beta with `brew install FI-153/tap/wyoming-apple-speech-beta`; the two formulae
 `conflicts_with` each other, so only one channel is active at a time.
 
 Requirements:

@@ -1,4 +1,4 @@
-# Code Style — Wyoming Apple STT
+# Code Style — Wyoming Apple Speech
 
 ## Swift (CLI tool)
 

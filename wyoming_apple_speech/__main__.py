@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wyoming Apple STT server entry point."""
+"""Wyoming Apple Speech server entry point."""
 
 import argparse
 import asyncio
@@ -202,7 +202,7 @@ def _build_tts_program(voices: list[SiriVoice]) -> TtsProgram:
 async def main() -> None:
     """Parse args, build Info, and start the Wyoming server."""
     parser = argparse.ArgumentParser(
-        description="Wyoming server for Apple on-device speech recognition"
+        description="Wyoming server for Apple on-device speech recognition and Siri text-to-speech"
     )
     parser.add_argument(
         "--uri",
@@ -369,7 +369,7 @@ async def main() -> None:
     server = AsyncServer.from_uri(args.uri)
 
     _LOGGER.info(
-        "Wyoming Apple STT server ready on %s (language=%s, tts=%s)",
+        "Wyoming Apple Speech server ready on %s (language=%s, tts=%s)",
         args.uri,
         args.language,
         "on" if tts_service is not None else "off",

@@ -11,7 +11,7 @@ LANGUAGE ?= en
 .PHONY: help venv build test swift-test quality run run-clean stop install uninstall clean
 
 help: ## Show this help message
-	@echo "Wyoming Apple STT"
+	@echo "Wyoming Apple Speech"
 	@echo ""
 	@echo "Usage: make <target>"
 	@echo ""
@@ -41,14 +41,14 @@ swift-test: ## Run Swift unit tests
 	cd swift && swift build --build-tests && swift test --skip-build
 
 quality: venv ## Run ruff linter and mypy type checker
-	$(VENV_DIR)/bin/ruff check wyoming_apple_stt/ tests/
-	$(VENV_DIR)/bin/mypy wyoming_apple_stt/
+	$(VENV_DIR)/bin/ruff check wyoming_apple_speech/ tests/
+	$(VENV_DIR)/bin/mypy wyoming_apple_speech/
 
 run-clean: venv ## Rebuild Swift binaries and start server
 	rm -f $(SWIFT_BIN) $(TTS_BIN)
 	cd swift && swift build -c release
 	codesign -f -s - $(SWIFT_BIN)
-	$(VENV_PYTHON) -m wyoming_apple_stt \
+	$(VENV_PYTHON) -m wyoming_apple_speech \
 		--uri tcp://0.0.0.0:$(PORT) \
 		--apple-stt-bin $(SWIFT_BIN) \
 		--apple-tts-bin $(TTS_BIN) \
@@ -56,7 +56,7 @@ run-clean: venv ## Rebuild Swift binaries and start server
 		--debug
 
 run: venv build ## Run the server locally (Ctrl+C to stop)
-	$(VENV_PYTHON) -m wyoming_apple_stt \
+	$(VENV_PYTHON) -m wyoming_apple_speech \
 		--uri tcp://0.0.0.0:$(PORT) \
 		--apple-stt-bin $(SWIFT_BIN) \
 		--apple-tts-bin $(TTS_BIN) \

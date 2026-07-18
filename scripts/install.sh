@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Wyoming Apple STT — Install Script
+# Wyoming Apple Speech — Install Script
 # Builds Swift binary, sets up Python venv, installs launchd service.
 
-INSTALL_DIR="${HOME}/.local/share/wyoming-apple-stt"
-LOG_DIR="${HOME}/Library/Logs/wyoming-apple-stt"
-PLIST_NAME="com.wyoming-apple-stt.plist"
+INSTALL_DIR="${HOME}/.local/share/wyoming-apple-speech"
+LOG_DIR="${HOME}/Library/Logs/wyoming-apple-speech"
+PLIST_NAME="com.wyoming-apple-speech.plist"
 PLIST_DIR="${HOME}/Library/LaunchAgents"
 
 PORT="${1:-10300}"
@@ -15,7 +15,7 @@ LANGUAGE="${2:-en}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "=== Wyoming Apple STT Installer ==="
+echo "=== Wyoming Apple Speech Installer ==="
 echo ""
 echo "Install dir:  ${INSTALL_DIR}"
 echo "Port:         ${PORT}"
@@ -78,7 +78,7 @@ sed \
     -e "s|__LANGUAGE__|${LANGUAGE}|g" \
     -e "s|__LOG_DIR__|${LOG_DIR}|g" \
     -e "s|__INSTALL_DIR__|${INSTALL_DIR}|g" \
-    "${PROJECT_DIR}/com.wyoming-apple-stt.plist.template" \
+    "${PROJECT_DIR}/com.wyoming-apple-speech.plist.template" \
     > "${PLIST_DIR}/${PLIST_NAME}"
 
 # 7. Load and start the service
@@ -108,5 +108,5 @@ echo "      a protected location a background service can't read by default — 
 echo "      workers then die and Home Assistant gets no audio. Grant it once:"
 echo "      System Settings → Privacy & Security → Full Disk Access → add"
 echo "        ${INSTALL_DIR}/venv/bin/python"
-echo "      then: launchctl kickstart -k gui/\$(id -u)/com.wyoming-apple-stt"
+echo "      then: launchctl kickstart -k gui/\$(id -u)/com.wyoming-apple-speech"
 echo "      (STT works without this; only Siri TTS requires it.)"

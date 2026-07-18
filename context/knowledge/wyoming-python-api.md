@@ -338,7 +338,7 @@ Distilled from both `wyoming-faster-whisper` and `wyoming-vosk`:
 
 ```python
 #!/usr/bin/env python3
-"""Wyoming Apple STT server entry point."""
+"""Wyoming Apple Speech server entry point."""
 
 import argparse
 import asyncio

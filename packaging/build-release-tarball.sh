@@ -4,7 +4,7 @@
 # Usage: packaging/build-release-tarball.sh <version>
 # Example: packaging/build-release-tarball.sh 1.0.0
 #
-# Produces: dist/wyoming-apple-stt-<version>.tar.gz
+# Produces: dist/wyoming-apple-speech-<version>.tar.gz
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -16,8 +16,8 @@ VERSION="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 DIST_DIR="${REPO_DIR}/dist"
-STAGE_DIR="${DIST_DIR}/wyoming-apple-stt-${VERSION}"
-TARBALL="${DIST_DIR}/wyoming-apple-stt-${VERSION}.tar.gz"
+STAGE_DIR="${DIST_DIR}/wyoming-apple-speech-${VERSION}"
+TARBALL="${DIST_DIR}/wyoming-apple-speech-${VERSION}.tar.gz"
 
 echo "==> Building universal Swift binaries"
 cd "${REPO_DIR}/swift"
@@ -44,14 +44,14 @@ cp "${BUILD_DIR}/apple-tts" "${STAGE_DIR}/apple-tts"
 # it unbound and TCC then aborts the process on first SFSpeechRecognizer
 # authorization request. apple-tts uses no speech-recognition entitlement.
 codesign -f -s - "${STAGE_DIR}/apple-stt"
-cp -R "${REPO_DIR}/wyoming_apple_stt" "${STAGE_DIR}/wyoming_apple_stt"
+cp -R "${REPO_DIR}/wyoming_apple_speech" "${STAGE_DIR}/wyoming_apple_speech"
 cp "${REPO_DIR}/pyproject.toml" "${STAGE_DIR}/pyproject.toml"
 cp "${REPO_DIR}/README.md" "${STAGE_DIR}/README.md"
 # Drop any __pycache__ copied in.
-find "${STAGE_DIR}/wyoming_apple_stt" -type d -name __pycache__ -exec rm -rf {} +
+find "${STAGE_DIR}/wyoming_apple_speech" -type d -name __pycache__ -exec rm -rf {} +
 
 echo "==> Creating tarball"
-tar -czf "${TARBALL}" -C "${DIST_DIR}" "wyoming-apple-stt-${VERSION}"
+tar -czf "${TARBALL}" -C "${DIST_DIR}" "wyoming-apple-speech-${VERSION}"
 
 echo "==> Computing SHA-256"
 SHA="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"

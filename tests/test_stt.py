@@ -5,7 +5,7 @@ import stat
 
 import pytest
 
-from wyoming_apple_stt.stt import (
+from wyoming_apple_speech.stt import (
     SttWorker,
     SttWorkerError,
     SttWorkerPool,

@@ -14,8 +14,8 @@ from wyoming.tts import (
     SynthesizeVoice,
 )
 
-from wyoming_apple_stt.handler import AppleSTTEventHandler
-from wyoming_apple_stt.tts import AudioFrame, SiriVoice, TtsService, TtsWorkerError
+from wyoming_apple_speech.handler import AppleSTTEventHandler
+from wyoming_apple_speech.tts import AudioFrame, SiriVoice, TtsService, TtsWorkerError
 
 
 class FakeWorker:

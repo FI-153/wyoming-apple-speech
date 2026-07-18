@@ -1,8 +1,8 @@
 class {{CLASS}} < Formula
   include Language::Python::Virtualenv
 
-  desc "Wyoming protocol STT server backed by Apple's Speech framework"
-  homepage "https://github.com/FI-153/wyoming-apple-stt"
+  desc "Wyoming STT + TTS server backed by Apple's Speech framework and Siri voices"
+  homepage "https://github.com/FI-153/wyoming-apple-speech"
   url "{{URL}}"
   version "{{VERSION}}"
   sha256 "{{SHA256}}"
@@ -20,11 +20,11 @@ class {{CLASS}} < Formula
     bin.install "apple-tts"
     virtualenv_install_with_resources
 
-    conf = etc/"wyoming-apple-stt.conf"
+    conf = etc/"wyoming-apple-speech.conf"
     unless conf.exist?
       conf.write <<~EOS
-        # Wyoming Apple STT configuration
-        # Restart after editing: brew services restart wyoming-apple-stt
+        # Wyoming Apple Speech configuration
+        # Restart after editing: brew services restart wyoming-apple-speech
         PORT=10300
         LANGUAGE=en
         # Extra flags passed to the server, e.g. "--debug" or "--timeout 60"
@@ -32,31 +32,31 @@ class {{CLASS}} < Formula
       EOS
     end
 
-    (libexec/"wyoming-apple-stt-run").write <<~EOS
+    (libexec/"wyoming-apple-speech-run").write <<~EOS
       #!/bin/bash
       set -euo pipefail
       PORT=10300
       LANGUAGE=en
       EXTRA_ARGS=""
-      CONF="#{etc}/wyoming-apple-stt.conf"
+      CONF="#{etc}/wyoming-apple-speech.conf"
       if [[ -f "${CONF}" ]]; then
         source "${CONF}"
       fi
-      exec "#{libexec}/bin/python" -m wyoming_apple_stt \\
+      exec "#{libexec}/bin/python" -m wyoming_apple_speech \\
         --uri "tcp://0.0.0.0:${PORT}" \\
         --language "${LANGUAGE}" \\
         --apple-stt-bin "#{bin}/apple-stt" \\
         --apple-tts-bin "#{bin}/apple-tts" \\
         ${EXTRA_ARGS}
     EOS
-    chmod 0755, libexec/"wyoming-apple-stt-run"
+    chmod 0755, libexec/"wyoming-apple-speech-run"
   end
 
   service do
-    run [opt_libexec/"wyoming-apple-stt-run"]
+    run [opt_libexec/"wyoming-apple-speech-run"]
     keep_alive true
-    log_path var/"log/wyoming-apple-stt.log"
-    error_log_path var/"log/wyoming-apple-stt.log"
+    log_path var/"log/wyoming-apple-speech.log"
+    error_log_path var/"log/wyoming-apple-speech.log"
   end
 
   test do
@@ -64,6 +64,6 @@ class {{CLASS}} < Formula
     assert_match(/"en"/, output)
     tts_output = shell_output("#{bin}/apple-tts --list-voices")
     assert_match(/\A\[/, tts_output)
-    system libexec/"bin/python", "-c", "import wyoming_apple_stt"
+    system libexec/"bin/python", "-c", "import wyoming_apple_speech"
   end
 end
